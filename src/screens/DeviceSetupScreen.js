@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import DateTimePicker from "@react-native-community/datetimepicker";
+// import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { LightTheme, DarkTheme } from "../constants/theme";
 import { setCurrentStep } from "../storage/progressStorage";
