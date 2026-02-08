@@ -79,7 +79,7 @@ export default function PhotoScreen({ navigation }) {
       <PhotoItem
         label="Disturbance photo (optional)"
         uri={photos.disturbance}
-        onPress={() => pickPhoto("disturbance")}
+        onPress={() => pickPhoto("disturbance")}  
         colors={colors}
       />
 
