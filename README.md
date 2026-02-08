@@ -46,8 +46,7 @@ The focus is on **clarity, reliability, and real-world usability**.
   - Gathering weather conditions
   - Arrival timing on sites
   - Pre-Deployment checklist for once
-  - Site arrival setup --> Device setup --> Placement of device checklist --> Deployment documentation
-  - Ground Truthing with Photos
+  - Site arrival setup --> Device setup --> Placement of device checklist --> Deployment documentation --> Ground Truthing with Photos (repeat for all sites)
 - Permissions are handled explicitly for:
   - Camera (photo/video)
   - Location access
@@ -61,7 +60,7 @@ This ensures every deployment action is **verifiable and traceable**.
 - Retrieval operations can be performed independently for the same sites
 - Similar to deployment, retrieval includes:
   - Image capture
-  - Location coordinates
+  - Location coordinates fetched for that site
   - Site association
 - This allows the app to track **complete lifecycle** of a site  
   (Deployment → Retrieval)
