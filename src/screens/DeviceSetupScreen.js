@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { LightTheme, DarkTheme } from "../constants/theme";
 import { setCurrentStep } from "../storage/progressStorage";
@@ -26,7 +27,11 @@ export default function DeviceSetupScreen({ navigation }) {
   const [customMode, setCustomMode] = useState(false);
   const [batteryOk, setBatteryOk] = useState(false);
   const [sdOk, setSdOk] = useState(false);
+
   const [duration, setDuration] = useState("");
+  const [startTime, setStartTime] = useState(null);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [scheduleConfirmed, setScheduleConfirmed] = useState(false);
 
   /* ---------- LOAD CURRENT SITE ---------- */
   useEffect(() => {
@@ -42,7 +47,7 @@ export default function DeviceSetupScreen({ navigation }) {
         return;
       }
       setCurrentSiteId(site);
-    } catch (err) {
+    } catch {
       Alert.alert("Error", "Failed to load site data");
       navigation.navigate("Home");
     }
@@ -63,10 +68,26 @@ export default function DeviceSetupScreen({ navigation }) {
       return;
     }
 
+    if (!startTime) {
+      Alert.alert(
+        "Missing info",
+        "Select scheduled recording start time."
+      );
+      return;
+    }
+
     if (!duration) {
       Alert.alert(
         "Missing info",
         "Select expected recording duration."
+      );
+      return;
+    }
+
+    if (!scheduleConfirmed) {
+      Alert.alert(
+        "Confirmation required",
+        "Please confirm the schedule matches the deployment window."
       );
       return;
     }
@@ -78,13 +99,15 @@ export default function DeviceSetupScreen({ navigation }) {
           customMode,
           batteriesOk: batteryOk,
           sdOk,
-          duration, // stored as days (string)
+          startTime: startTime.toISOString(),
+          duration, // days (string)
+          scheduleConfirmed,
         },
       });
 
       await setCurrentStep(4);
       navigation.navigate("Placement");
-    } catch (err) {
+    } catch {
       Alert.alert(
         "Error",
         "Failed to save device setup. Please try again."
@@ -136,6 +159,37 @@ export default function DeviceSetupScreen({ navigation }) {
           colors={colors}
         />
 
+        {/* START TIME */}
+        <Text style={[styles.subTitle, { color: colors.text }]}>
+          Scheduled Start Time
+        </Text>
+
+        <TouchableOpacity
+          style={[
+            styles.timeBtn,
+            { borderColor: colors.border },
+          ]}
+          onPress={() => setShowTimePicker(true)}
+        >
+          <Text style={{ color: startTime ? colors.text : "#888" }}>
+            {startTime
+              ? startTime.toLocaleTimeString()
+              : "Select start time"}
+          </Text>
+        </TouchableOpacity>
+
+        {showTimePicker && (
+          <DateTimePicker
+            mode="time"
+            value={startTime || new Date()}
+            onChange={(e, date) => {
+              setShowTimePicker(false);
+              if (date) setStartTime(date);
+            }}
+          />
+        )}
+
+        {/* DURATION */}
         <Text style={[styles.subTitle, { color: colors.text }]}>
           Expected Recording Duration
         </Text>
@@ -158,6 +212,14 @@ export default function DeviceSetupScreen({ navigation }) {
           />
         </View>
 
+        <CheckItem
+          label="Recording schedule matches deployment window"
+          checked={scheduleConfirmed}
+          onPress={() => setScheduleConfirmed(!scheduleConfirmed)}
+          colors={colors}
+        />
+
+        {/* TROUBLESHOOTING */}
         <View style={[styles.infoBox, { backgroundColor: colors.card }]}>
           <Text style={{ color: colors.text, fontSize: 13 }}>
             • No LED flash → Check battery orientation{"\n"}
@@ -193,11 +255,7 @@ function CheckItem({ label, checked, onPress, colors }) {
       <View
         style={[
           styles.circle,
-          {
-            backgroundColor: checked
-              ? "#2ecc71"
-              : "transparent",
-          },
+          { backgroundColor: checked ? "#2ecc71" : "transparent" },
         ]}
       >
         {checked && <Text style={styles.tick}>✓</Text>}
@@ -215,9 +273,7 @@ function DurationBtn({ label, active, onPress }) {
     <TouchableOpacity
       style={[
         styles.durationBtn,
-        {
-          backgroundColor: active ? "#2ecc71" : "#ccc",
-        },
+        { backgroundColor: active ? "#2ecc71" : "#ccc" },
       ]}
       onPress={onPress}
     >
@@ -281,6 +337,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     marginRight: 8,
+  },
+
+  timeBtn: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
   },
 
   infoBox: {

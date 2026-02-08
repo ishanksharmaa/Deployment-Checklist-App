@@ -36,6 +36,7 @@ export const DEFAULT_SITES = [
 ].map((id) => ({
   id,
   completed: false,
+
   arrival: null,
   deviceSetup: null,
   placement: null,
@@ -43,7 +44,7 @@ export const DEFAULT_SITES = [
   groundTruth: null,
 }));
 
-/* ---------- INTERNAL HELPERS ---------- */
+/* ---------- HELPERS ---------- */
 
 const safeParse = (raw) => {
   try {
@@ -55,6 +56,7 @@ const safeParse = (raw) => {
 
 const ensureInit = async () => {
   const raw = await AsyncStorage.getItem(SITES_KEY);
+
   if (!raw) {
     await AsyncStorage.setItem(
       SITES_KEY,
@@ -64,7 +66,7 @@ const ensureInit = async () => {
   }
 
   const parsed = safeParse(raw);
-  if (!parsed) {
+  if (!parsed || !Array.isArray(parsed)) {
     await AsyncStorage.setItem(
       SITES_KEY,
       JSON.stringify(DEFAULT_SITES)
@@ -102,7 +104,14 @@ export const isAllSitesCompleted = async () => {
   return sites.length > 0 && sites.every((s) => s.completed);
 };
 
-/* ---------- UPDATE SITE (SAFE) ---------- */
+/* ---------- UPDATE SITE ---------- */
+/*
+sectionData example:
+{ deviceSetup: {...} }
+{ placement: {...} }
+{ documentation: {...} }
+{ groundTruth: {...} }
+*/
 
 export const updateSite = async (siteId, sectionData) => {
   if (!siteId || !sectionData) return;
@@ -113,9 +122,10 @@ export const updateSite = async (siteId, sectionData) => {
   const updated = sites.map((site) => {
     if (site.id !== siteId) return site;
     found = true;
+
     return {
       ...site,
-      ...sectionData, // controlled overwrite (section-level only)
+      ...sectionData, // sirf jo section bheja wahi overwrite hoga
     };
   });
 
@@ -131,7 +141,7 @@ export const updateSite = async (siteId, sectionData) => {
 
 /* ---------- MARK SITE COMPLETED ---------- */
 /*
-Call ONLY from GroundTruthScreen (final step)
+ONLY call from GroundTruthScreen (last step)
 */
 
 export const markSiteCompleted = async (siteId) => {

@@ -45,7 +45,7 @@ export default function SiteSummaryScreen({ navigation }) {
     if (!site.completed) {
       Alert.alert(
         "Summary not available",
-        "Please complete this site to view its summary."
+        "Please complete this site first."
       );
       return;
     }
@@ -61,13 +61,9 @@ export default function SiteSummaryScreen({ navigation }) {
   };
 
   const onProceed = async () => {
-    try {
-      await setCurrentStep(2);
-      const allDone = await isAllSitesCompleted();
-      navigation.replace(allDone ? "DailySummary" : "Home");
-    } catch {
-      Alert.alert("Error", "Navigation failed");
-    }
+    await setCurrentStep(2);
+    const allDone = await isAllSitesCompleted();
+    navigation.replace(allDone ? "DailySummary" : "Home");
   };
 
   return (
@@ -108,11 +104,7 @@ export default function SiteSummaryScreen({ navigation }) {
               ]}
               onPress={() => onSelectSite(site)}
             >
-              <Text
-                style={{
-                  color: site.completed ? colors.text : "#999",
-                }}
-              >
+              <Text style={{ color: site.completed ? colors.text : "#999" }}>
                 {site.id}
                 {!site.completed && " (not completed)"}
               </Text>
@@ -130,7 +122,7 @@ export default function SiteSummaryScreen({ navigation }) {
               <Row label="Time" value={selectedSite.arrival?.time} />
               <Row
                 label="Access Issue"
-                value={selectedSite.arrival?.accessIssue ? "Yes" : "No"}
+                value={bool(selectedSite.arrival?.accessIssue)}
               />
               <Row label="Issue Note" value={selectedSite.arrival?.issueNote} />
             </Section>
@@ -146,7 +138,7 @@ export default function SiteSummaryScreen({ navigation }) {
 
             {/* PLACEMENT */}
             <Section title="Placement" colors={colors}>
-              <Text style={styles.okText}>✓ All placement checks passed</Text>
+              <Text style={styles.okText}>✓ Placement checklist completed</Text>
             </Section>
 
             {/* DOCUMENTATION */}
@@ -184,18 +176,13 @@ export default function SiteSummaryScreen({ navigation }) {
               <Photo uri={selectedSite.groundTruth?.photos?.landscape} label="Landscape" />
               <Photo uri={selectedSite.groundTruth?.photos?.canopy} label="Canopy" />
               <Photo uri={selectedSite.groundTruth?.photos?.device} label="Device" />
-              {selectedSite.groundTruth?.photos?.disturbance && (
-                <Photo
-                  uri={selectedSite.groundTruth.photos.disturbance}
-                  label="Disturbance"
-                />
-              )}
+              <Photo uri={selectedSite.groundTruth?.photos?.disturbance} label="Disturbance" />
             </Section>
           </>
         ) : (
           <View style={styles.empty}>
             <Text style={{ color: colors.text, opacity: 0.6 }}>
-              Select a completed site to view full summary
+              Select a completed site to view summary
             </Text>
           </View>
         )}
@@ -211,7 +198,7 @@ export default function SiteSummaryScreen({ navigation }) {
   );
 }
 
-/* ---------- HELPERS ---------- */
+/* ---------- helpers ---------- */
 
 const bool = (v) => (v === true ? "Yes" : v === false ? "No" : "");
 
@@ -244,7 +231,7 @@ function Photo({ uri, label }) {
   );
 }
 
-/* ---------- STYLES ---------- */
+/* ---------- styles ---------- */
 
 const styles = StyleSheet.create({
   container: { padding: 20 },

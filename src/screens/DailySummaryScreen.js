@@ -6,8 +6,10 @@ import {
   TouchableOpacity,
   useColorScheme,
   Alert,
+  ScrollView,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { LightTheme, DarkTheme } from "../constants/theme";
 import Header from "../components/Header";
@@ -15,17 +17,15 @@ import {
   getAllSites,
   isAllSitesCompleted,
 } from "../storage/sitesStorage";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function DailySummaryScreen({ navigation }) {
   const scheme = useColorScheme();
   const colors = scheme === "dark" ? DarkTheme : LightTheme;
 
-  const [completedCount, setCompletedCount] = useState(0);
-  const [totalSites, setTotalSites] = useState(0);
+  const [sites, setSites] = useState([]);
   const [allDone, setAllDone] = useState(false);
 
-  /* ---------- LOAD SUMMARY ON FOCUS ---------- */
+  /* ---------- LOAD SUMMARY ---------- */
   useFocusEffect(
     useCallback(() => {
       loadSummary();
@@ -34,16 +34,13 @@ export default function DailySummaryScreen({ navigation }) {
 
   const loadSummary = async () => {
     try {
-      const sites = await getAllSites();
-      const completed = sites.filter((s) => s.completed);
-
-      setCompletedCount(completed.length);
-      setTotalSites(sites.length);
+      const allSites = await getAllSites();
+      setSites(allSites);
 
       const done = await isAllSitesCompleted();
       setAllDone(done);
-    } catch (err) {
-      Alert.alert("Error", "Failed to load daily summary.");
+    } catch {
+      Alert.alert("Error", "Failed to load daily summary");
     }
   };
 
@@ -52,34 +49,32 @@ export default function DailySummaryScreen({ navigation }) {
     if (!allDone) {
       Alert.alert(
         "Deployment incomplete",
-        "All sites must be successfully deployed before closing the deployment day."
+        "All sites must be completed before closing the day."
       );
       return;
     }
 
     try {
-      // Clear temporary session data (NOT site data)
       await AsyncStorage.multiRemove(["currentSiteId"]);
-
-      // Reset navigation to Home
       navigation.popToTop();
-    } catch (err) {
-      Alert.alert(
-        "Error",
-        "Failed to close deployment day."
-      );
+    } catch {
+      Alert.alert("Error", "Failed to complete deployment day");
     }
   };
+
+  const completedCount = sites.filter((s) => s.completed).length;
+  const today = new Date().toLocaleDateString();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Header
-        title="Daily Summary"
+        title="Daily Deployment Summary"
         colors={colors}
         onBack={() => navigation.goBack()}
       />
 
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* OVERALL SUMMARY */}
         <View
           style={[
             styles.card,
@@ -90,14 +85,51 @@ export default function DailySummaryScreen({ navigation }) {
           ]}
         >
           <Text style={[styles.big, { color: colors.text }]}>
-            {completedCount} / {totalSites}
+            {completedCount} / {sites.length}
           </Text>
 
           <Text style={[styles.sub, { color: colors.text }]}>
-            Sites successfully deployed today
+            Sites deployed today
+          </Text>
+
+          <Text style={[styles.date, { color: colors.text }]}>
+            Date: {today}
           </Text>
         </View>
 
+        {/* PER SITE STATUS */}
+        <View style={styles.list}>
+          {sites.map((site) => (
+            <View
+              key={site.id}
+              style={[
+                styles.siteRow,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: site.completed
+                    ? "#2ecc7120"
+                    : "transparent",
+                },
+              ]}
+            >
+              <Text style={{ color: colors.text }}>
+                {site.id}
+              </Text>
+              <Text
+                style={{
+                  color: site.completed
+                    ? "#2ecc71"
+                    : "#e74c3c",
+                  fontWeight: "600",
+                }}
+              >
+                {site.completed ? "Complete" : "Incomplete"}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* FINISH BUTTON */}
         <TouchableOpacity
           disabled={!allDone}
           style={[
@@ -115,7 +147,7 @@ export default function DailySummaryScreen({ navigation }) {
             Deployment day complete
           </Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -124,32 +156,54 @@ export default function DailySummaryScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     padding: 20,
-    justifyContent: "center",
   },
+
   card: {
     alignItems: "center",
     padding: 28,
     borderRadius: 12,
     borderWidth: 1,
+    marginBottom: 20,
   },
+
   big: {
     fontSize: 42,
     fontWeight: "700",
   },
+
   sub: {
-    marginTop: 8,
+    marginTop: 6,
     fontSize: 14,
     opacity: 0.8,
-    textAlign: "center",
   },
+
+  date: {
+    marginTop: 6,
+    fontSize: 13,
+    opacity: 0.7,
+  },
+
+  list: {
+    marginTop: 10,
+  },
+
+  siteRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+
   btn: {
     marginTop: 30,
     padding: 16,
     borderRadius: 8,
     alignItems: "center",
   },
+
   btnText: {
     color: "#fff",
     fontWeight: "600",
