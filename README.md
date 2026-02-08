@@ -144,6 +144,28 @@ The goal was not just to build a working app, but to demonstrate **problem-solvi
 ## 🖼️ Screenshots
 
 Screenshots of the application UI and workflows are provided below for reference.
+![Home Screen](screenshots/homescreen.jpg)
+![Pre Deployment](screenshots/pre-deployment.jpg)
+![Location Capture](screenshots/location.jpg)
+![Device Setup](screenshots/device%20setup.jpg)
+![Placement Checklist](screenshots/placement%20checklist.jpg)
+![Ground Truthing](screenshots/ground%20tuthing.jpg)
+![Photo Capture](screenshots/photo%20capture.jpg)
+
+![Organising Data](screenshots/organising%20data.jpg)
+
+![Site Summary](screenshots/site%20summmary%201.jpg)
+
+![Receiver / Retriever](screenshots/rec%20ritriever.jpg)
+![Retrieve Menu](screenshots/retrieve%20menu.jpg)
+
+![Retrieval Summary](screenshots/retrieval%20summary.jpg)
+
+
+
+![Weekly Summary](screenshots/weekly.jpg)
+
+
 
 
 
