@@ -54,7 +54,7 @@ export default function DeviceSetupScreen({ navigation }) {
 
   /* ---------- VALIDATION HELPERS ---------- */
   const isValidDate = (v) => /^\d{2}-\d{2}-\d{4}$/.test(v);
-  const isValidTime = (v) => /^\d{2}:\d{2}$/.test(v);
+  const isValidTime = (v) => /^\d{2}\.\d{2}$/.test(v);
 
   /* ---------- COMPLETE ---------- */
   const onComplete = async () => {
@@ -77,7 +77,7 @@ export default function DeviceSetupScreen({ navigation }) {
     }
 
     if (!isValidTime(startTime)) {
-      Alert.alert("Invalid time", "Use HH:MM (24-hour) format.");
+      Alert.alert("Invalid time", "Use HH.MM (24-hour) format.");
       return;
     }
 
@@ -102,7 +102,7 @@ export default function DeviceSetupScreen({ navigation }) {
           batteriesOk: batteryOk,
           sdOk,
           startDate,   // DD-MM-YYYY
-          startTime,   // HH:MM
+          startTime,   // HH.MM
           duration,    // days
           scheduleConfirmed,
         },
@@ -174,10 +174,10 @@ export default function DeviceSetupScreen({ navigation }) {
 
         {/* TIME */}
         <Text style={[styles.subTitle, { color: colors.text }]}>
-          Scheduled Start Time (HH:MM)
+          Scheduled Start Time (HH.MM)
         </Text>
         <TextInput
-          placeholder="HH:MM"
+          placeholder="HH.MM"
           placeholderTextColor="#888"
           value={startTime}
           onChangeText={setStartTime}
