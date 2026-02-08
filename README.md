@@ -151,19 +151,14 @@ Screenshots of the application UI and workflows are provided below for reference
 ![Placement Checklist](screenshots/placement%20checklist.jpg)
 ![Ground Truthing](screenshots/ground%20tuthing.jpg)
 ![Photo Capture](screenshots/photo%20capture.jpg)
-
-![Organising Data](screenshots/organising%20data.jpg)
+![Weekly Summary](screenshots/weekly.jpg)
 
 ![Site Summary](screenshots/site%20summmary%201.jpg)
 
 ![Receiver / Retriever](screenshots/rec%20ritriever.jpg)
 ![Retrieve Menu](screenshots/retrieve%20menu.jpg)
-
 ![Retrieval Summary](screenshots/retrieval%20summary.jpg)
-
-
-
-![Weekly Summary](screenshots/weekly.jpg)
+![Organising Data](screenshots/organising%20data.jpg)
 
 
 
