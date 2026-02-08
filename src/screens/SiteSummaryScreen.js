@@ -206,7 +206,7 @@ export default function SiteSummaryScreen({ navigation }) {
   );
 }
 
-/* ---------- SMALL COMPONENTS ---------- */
+/* ---------- SMALL COMPONENTS -------- */
 
 function Section({ title, children, colors }) {
   return (
