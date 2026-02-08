@@ -43,6 +43,11 @@ The focus is on **clarity, reliability, and real-world usability**.
   - Capturing **images** as proof
   - Recording **GPS coordinates** of the site
   - Associating deployment details with a specific site
+  - Gathering weather conditions
+  - Arrival timing on sites
+  - Pre-Deployment checklist for once
+  - Site arrival setup --> Device setup --> Placement of device checklist --> Deployment documentation
+  - Ground Truthing with Photos
 - Permissions are handled explicitly for:
   - Camera (photo/video)
   - Location access
