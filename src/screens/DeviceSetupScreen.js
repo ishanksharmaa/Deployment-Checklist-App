@@ -10,7 +10,6 @@ import {
   ScrollView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-// import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { LightTheme, DarkTheme } from "../constants/theme";
 import { setCurrentStep } from "../storage/progressStorage";
@@ -28,9 +27,9 @@ export default function DeviceSetupScreen({ navigation }) {
   const [batteryOk, setBatteryOk] = useState(false);
   const [sdOk, setSdOk] = useState(false);
 
+  const [startDate, setStartDate] = useState(""); // DD-MM-YYYY
+  const [startTime, setStartTime] = useState(""); // HH:MM
   const [duration, setDuration] = useState("");
-  const [startTime, setStartTime] = useState(null);
-  const [showTimePicker, setShowTimePicker] = useState(false);
   const [scheduleConfirmed, setScheduleConfirmed] = useState(false);
 
   /* ---------- LOAD CURRENT SITE ---------- */
@@ -53,10 +52,14 @@ export default function DeviceSetupScreen({ navigation }) {
     }
   };
 
+  /* ---------- VALIDATION HELPERS ---------- */
+  const isValidDate = (v) => /^\d{2}-\d{2}-\d{4}$/.test(v);
+  const isValidTime = (v) => /^\d{2}:\d{2}$/.test(v);
+
   /* ---------- COMPLETE ---------- */
   const onComplete = async () => {
     if (!deviceId.trim()) {
-      Alert.alert("Missing info", "Please enter Device ID / Serial.");
+      Alert.alert("Missing info", "Enter Device ID / Serial.");
       return;
     }
 
@@ -68,26 +71,25 @@ export default function DeviceSetupScreen({ navigation }) {
       return;
     }
 
-    if (!startTime) {
-      Alert.alert(
-        "Missing info",
-        "Select scheduled recording start time."
-      );
+    if (!isValidDate(startDate)) {
+      Alert.alert("Invalid date", "Use DD-MM-YYYY format.");
+      return;
+    }
+
+    if (!isValidTime(startTime)) {
+      Alert.alert("Invalid time", "Use HH:MM (24-hour) format.");
       return;
     }
 
     if (!duration) {
-      Alert.alert(
-        "Missing info",
-        "Select expected recording duration."
-      );
+      Alert.alert("Missing info", "Select recording duration.");
       return;
     }
 
     if (!scheduleConfirmed) {
       Alert.alert(
         "Confirmation required",
-        "Please confirm the schedule matches the deployment window."
+        "Confirm schedule matches deployment window."
       );
       return;
     }
@@ -99,8 +101,9 @@ export default function DeviceSetupScreen({ navigation }) {
           customMode,
           batteriesOk: batteryOk,
           sdOk,
-          startTime: startTime.toISOString(),
-          duration, // days (string)
+          startDate,   // DD-MM-YYYY
+          startTime,   // HH:MM
+          duration,    // days
           scheduleConfirmed,
         },
       });
@@ -108,10 +111,7 @@ export default function DeviceSetupScreen({ navigation }) {
       await setCurrentStep(4);
       navigation.navigate("Placement");
     } catch {
-      Alert.alert(
-        "Error",
-        "Failed to save device setup. Please try again."
-      );
+      Alert.alert("Error", "Failed to save device setup.");
     }
   };
 
@@ -123,10 +123,7 @@ export default function DeviceSetupScreen({ navigation }) {
         onBack={() => navigation.navigate("Home")}
       />
 
-      <ScrollView
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.container}>
         <TextInput
           placeholder="Device ID / Serial"
           placeholderTextColor="#888"
@@ -139,7 +136,7 @@ export default function DeviceSetupScreen({ navigation }) {
         />
 
         <CheckItem
-          label="Device switched to CUSTOM mode (LED should be green)"
+          label="Device switched to CUSTOM mode (LED green)"
           checked={customMode}
           onPress={() => setCustomMode(!customMode)}
           colors={colors}
@@ -159,57 +156,46 @@ export default function DeviceSetupScreen({ navigation }) {
           colors={colors}
         />
 
-        {/* START TIME */}
+        {/* DATE */}
         <Text style={[styles.subTitle, { color: colors.text }]}>
-          Scheduled Start Time
+          Scheduled Start Date (DD-MM-YYYY)
         </Text>
-
-        <TouchableOpacity
+        <TextInput
+          placeholder="DD-MM-YYYY"
+          placeholderTextColor="#888"
+          value={startDate}
+          onChangeText={setStartDate}
+          keyboardType="numeric"
           style={[
-            styles.timeBtn,
-            { borderColor: colors.border },
+            styles.input,
+            { color: colors.text, borderColor: colors.border },
           ]}
-          onPress={() => setShowTimePicker(true)}
-        >
-          <Text style={{ color: startTime ? colors.text : "#888" }}>
-            {startTime
-              ? startTime.toLocaleTimeString()
-              : "Select start time"}
-          </Text>
-        </TouchableOpacity>
+        />
 
-        {showTimePicker && (
-          <DateTimePicker
-            mode="time"
-            value={startTime || new Date()}
-            onChange={(e, date) => {
-              setShowTimePicker(false);
-              if (date) setStartTime(date);
-            }}
-          />
-        )}
+        {/* TIME */}
+        <Text style={[styles.subTitle, { color: colors.text }]}>
+          Scheduled Start Time (HH:MM)
+        </Text>
+        <TextInput
+          placeholder="HH:MM"
+          placeholderTextColor="#888"
+          value={startTime}
+          onChangeText={setStartTime}
+          keyboardType="numeric"
+          style={[
+            styles.input,
+            { color: colors.text, borderColor: colors.border },
+          ]}
+        />
 
         {/* DURATION */}
         <Text style={[styles.subTitle, { color: colors.text }]}>
           Expected Recording Duration
         </Text>
-
         <View style={styles.row}>
-          <DurationBtn
-            label="1 day"
-            active={duration === "1"}
-            onPress={() => setDuration("1")}
-          />
-          <DurationBtn
-            label="3 days"
-            active={duration === "3"}
-            onPress={() => setDuration("3")}
-          />
-          <DurationBtn
-            label="5 days"
-            active={duration === "5"}
-            onPress={() => setDuration("5")}
-          />
+          <DurationBtn label="1 day" active={duration === "1"} onPress={() => setDuration("1")} />
+          <DurationBtn label="3 days" active={duration === "3"} onPress={() => setDuration("3")} />
+          <DurationBtn label="5 days" active={duration === "5"} onPress={() => setDuration("5")} />
         </View>
 
         <CheckItem
@@ -219,11 +205,10 @@ export default function DeviceSetupScreen({ navigation }) {
           colors={colors}
         />
 
-        {/* TROUBLESHOOTING */}
         <View style={[styles.infoBox, { backgroundColor: colors.card }]}>
           <Text style={{ color: colors.text, fontSize: 13 }}>
-            • No LED flash → Check battery orientation{"\n"}
-            • Red LED flashing → Reinsert SD card firmly{"\n"}
+            • No LED → Check battery orientation{"\n"}
+            • Red LED → Reinsert SD card{"\n"}
             • Still issues → Report to Darukaa.Earth
           </Text>
         </View>
@@ -241,7 +226,7 @@ export default function DeviceSetupScreen({ navigation }) {
   );
 }
 
-/* ---------- components ---------- */
+/* ---------- COMPONENTS ---------- */
 
 function CheckItem({ label, checked, onPress, colors }) {
   return (
@@ -260,10 +245,7 @@ function CheckItem({ label, checked, onPress, colors }) {
       >
         {checked && <Text style={styles.tick}>✓</Text>}
       </View>
-
-      <Text style={[styles.checkText, { color: colors.text }]}>
-        {label}
-      </Text>
+      <Text style={[styles.checkText, { color: colors.text }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -277,14 +259,12 @@ function DurationBtn({ label, active, onPress }) {
       ]}
       onPress={onPress}
     >
-      <Text style={{ color: active ? "#fff" : "#000" }}>
-        {label}
-      </Text>
+      <Text style={{ color: active ? "#fff" : "#000" }}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-/* ---------- styles ---------- */
+/* ---------- STYLES ---------- */
 
 const styles = StyleSheet.create({
   container: { padding: 20 },
@@ -317,18 +297,18 @@ const styles = StyleSheet.create({
   },
 
   tick: { color: "#fff", fontWeight: "600" },
-
   checkText: { flex: 1, fontSize: 14 },
 
   subTitle: {
     marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 6,
     fontSize: 14,
   },
 
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginBottom: 12,
   },
 
   durationBtn: {
@@ -337,12 +317,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     marginRight: 8,
-  },
-
-  timeBtn: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
   },
 
   infoBox: {

@@ -8,17 +8,27 @@ SINGLE SOURCE OF TRUTH – SITE OBJECT
 {
   id: "C1-S1",
 
-  // deployment completed or not
-  completed: false,
+  completed: false, // deployment completed or not
 
   arrival: {
     coords: { lat, lng, acc },
-    time: "",
+    time: "",               // string
     accessIssue: false,
     issueNote: ""
   },
 
-  deviceSetup: { ... },
+  deviceSetup: {
+    deviceId: "",
+    customMode: false,
+    batteriesOk: false,
+    sdOk: false,
+
+    startDate: "",          // DD-MM-YYYY
+    startTime: "",          // HH:MM (24h)
+    duration: "",           // days
+    scheduleConfirmed: false
+  },
+
   placement: { ... },
   documentation: { ... },
 
@@ -26,18 +36,18 @@ SINGLE SOURCE OF TRUTH – SITE OBJECT
     flora: { ... },
     fauna: { ... },
     photos: { ... },
-    completedAt: ""
+    completedAt: ""         // string
   },
 
   retrieval: {
     arrival: {
-      time: "",
+      time: "",             // string
       referenceCoords: { lat, lng, acc }
     },
 
     deviceStatus: {
-      battery: "",        // Full / Moderate / Low / Depleted
-      condition: "",      // Dry / Wet / Damaged / Missing
+      battery: "",          // Full / Moderate / Low / Depleted
+      condition: "",        // Dry / Wet / Damaged / Missing
       sdRemoved: false,
       note: ""
     },
@@ -50,7 +60,7 @@ SINGLE SOURCE OF TRUTH – SITE OBJECT
       photo: null
     },
 
-    timeRetrieved: "",
+    timeRetrieved: "",      // string
     completed: false
   }
 }
@@ -76,7 +86,7 @@ export const DEFAULT_SITES = [
   documentation: null,
   groundTruth: null,
 
-  retrieval: null, // retrieval start hone par banega
+  retrieval: null, // retrieval start hone par create hoga
 }));
 
 /* ---------- HELPERS ---------- */
@@ -162,7 +172,7 @@ export const updateSite = async (siteId, sectionData) => {
 
     return {
       ...site,
-      ...sectionData, // jo section bheja wahi overwrite
+      ...sectionData, // sirf jo section bheja wahi overwrite
     };
   });
 

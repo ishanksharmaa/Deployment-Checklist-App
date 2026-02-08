@@ -127,13 +127,19 @@ export default function SiteSummaryScreen({ navigation }) {
               <Row label="Issue Note" value={selectedSite.arrival?.issueNote} />
             </Section>
 
-            {/* DEVICE */}
+            {/* DEVICE SETUP */}
             <Section title="Device Setup" colors={colors}>
               <Row label="Device ID" value={selectedSite.deviceSetup?.deviceId} />
               <Row label="Custom Mode" value={bool(selectedSite.deviceSetup?.customMode)} />
               <Row label="Batteries OK" value={bool(selectedSite.deviceSetup?.batteriesOk)} />
               <Row label="SD Card OK" value={bool(selectedSite.deviceSetup?.sdOk)} />
+              <Row label="Start Date" value={selectedSite.deviceSetup?.startDate} />
+              <Row label="Start Time" value={selectedSite.deviceSetup?.startTime} />
               <Row label="Duration (days)" value={selectedSite.deviceSetup?.duration} />
+              <Row
+                label="Schedule Confirmed"
+                value={bool(selectedSite.deviceSetup?.scheduleConfirmed)}
+              />
             </Section>
 
             {/* PLACEMENT */}

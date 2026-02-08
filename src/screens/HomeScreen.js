@@ -9,10 +9,14 @@ import {
   ScrollView,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { LightTheme, DarkTheme } from "../constants/theme";
-import { getCurrentStep } from "../storage/progressStorage";
-import { isAllSitesCompleted } from "../storage/sitesStorage";
+import { getCurrentStep, resetProgress } from "../storage/progressStorage";
+import {
+  isAllSitesCompleted,
+  resetAllSites,
+} from "../storage/sitesStorage";
 import StepButton from "../components/StepButton";
 import { STEPS } from "../constants/steps";
 
@@ -30,7 +34,7 @@ export default function HomeScreen({ navigation }) {
     }, [])
   );
 
-  /* ---------- LOAD DATA ---------- */
+  /* ---------- LOAD STATE ---------- */
   const loadData = async () => {
     try {
       const step = await getCurrentStep();
@@ -41,15 +45,52 @@ export default function HomeScreen({ navigation }) {
     } catch {
       Alert.alert(
         "Error",
-        "Failed to load progress. Please restart the app."
+        "Failed to load progress. Restart app."
       );
     }
   };
 
-  /* ---------- STEP NAV GUARD ---------- */
+  /* ---------- CLEAR ALL DATA ---------- */
+  const handleClearAll = () => {
+    Alert.alert(
+      "Clear all data?",
+      "This will permanently delete all deployment and retrieval data.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: confirmClearAll,
+        },
+      ]
+    );
+  };
+
+  const confirmClearAll = async () => {
+    try {
+      await AsyncStorage.clear();
+      await resetAllSites();
+      await resetProgress();
+
+      Alert.alert(
+        "Cleared",
+        "All app data has been reset."
+      );
+
+      navigation.replace("Home");
+    } catch {
+      Alert.alert(
+        "Error",
+        "Failed to clear storage."
+      );
+    }
+  };
+
+  /* ---------- STEP HANDLER ---------- */
   const handleStepPress = (step) => {
-    // deployment steps
     if (step.type === "deployment") {
+      if (allSitesDone) return;
+
       if (step.id > currentStep) {
         Alert.alert(
           "Step locked",
@@ -61,12 +102,11 @@ export default function HomeScreen({ navigation }) {
       return;
     }
 
-    // retrieval steps
     if (step.type === "retrieval") {
       if (!allSitesDone) {
         Alert.alert(
           "Retrieval locked",
-          "Complete deployment for all sites before retrieval."
+          "Complete deployment for all sites first."
         );
         return;
       }
@@ -74,7 +114,6 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
-  /* ---------- FILTER STEPS ---------- */
   const deploymentSteps = STEPS.filter(
     (s) => s.type === "deployment"
   );
@@ -88,50 +127,58 @@ export default function HomeScreen({ navigation }) {
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.container}
     >
-      <Text style={styles.header}>
-        Deployment Checklist App
-      </Text>
-
-      {/* ---------- DEPLOYMENT ---------- */}
-      <Text style={styles.sectionTitle}>
-        Deployment Flow
-      </Text>
-
-      <View style={styles.grid}>
-        {deploymentSteps.map((step) => (
-          <StepButton
-            key={step.id}
-            step={step}
-            currentStep={currentStep}
-            onPress={() => handleStepPress(step)}
-          />
-        ))}
+      {/* HEADER */}
+      <View style={styles.headerRow}>
+        <Text style={styles.header}>
+          Deployment Checklist App
+        </Text>
       </View>
 
-      {/* ---------- RETRIEVAL ---------- */}
-      <Text
-        style={[
-          styles.sectionTitle,
-          { marginTop: 30 },
-        ]}
-      >
-        Retrieval Flow
-      </Text>
+      {/* DEPLOYMENT */}
+      {!allSitesDone && (
+        <>
+          {/* <Text style={styles.sectionTitle}>
+            Deployment Flow
+          </Text> */}
 
-      <View style={styles.grid}>
-        {retrievalSteps.map((step) => (
-          <StepButton
-            key={step.id}
-            step={step}
-            currentStep={
-              allSitesDone ? step.id : 0
-            }
-            onPress={() => handleStepPress(step)}
-          />
-        ))}
-      </View>
+          <View style={styles.grid}>
+            {deploymentSteps.map((step) => (
+              <StepButton
+                key={step.id}
+                step={step}
+                currentStep={currentStep}
+                onPress={() =>
+                  handleStepPress(step)
+                }
+              />
+            ))}
+          </View>
+        </>
+      )}
 
-      {/* ---------- SUMMARY ---------- */}
+      {/* RETRIEVAL */}
+      {allSitesDone && (
+        <>
+          <Text style={styles.sectionTitle}>
+            Retrieval Flow
+          </Text>
+
+          <View style={styles.grid}>
+            {retrievalSteps.map((step) => (
+              <StepButton
+                key={step.id}
+                step={step}
+                currentStep={step.id}
+                onPress={() =>
+                  handleStepPress(step)
+                }
+              />
+            ))}
+          </View>
+        </>
+      )}
+
+      {/* SUMMARY */}
       <TouchableOpacity
         style={styles.summaryBtn}
         onPress={() =>
@@ -158,11 +205,17 @@ export default function HomeScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
       )}
+      <TouchableOpacity
+        onPress={handleClearAll}
+        style={styles.clearBtn}
+      >
+        <Text style={styles.clearText}>Clear all data</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
-/* ---------- styles ---------- */
+/* ---------- STYLES ---------- */
 
 const getStyles = (colors) =>
   StyleSheet.create({
@@ -170,12 +223,32 @@ const getStyles = (colors) =>
       padding: 20,
       paddingBottom: 40,
     },
+    headerRow: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 25,
+      marginTop: 30,
+    },
     header: {
-      fontSize: 20,
-      fontWeight: "600",
-      marginBottom: 20,
-      textAlign: "center",
+      fontSize: 22,
+      fontWeight: "700",
       color: colors.text,
+    },
+    clearBtn: {
+      paddingHorizontal: 0,
+      paddingVertical: 12,
+      borderRadius: 6,
+      borderWidth: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      borderColor: "#DC143C",
+      marginTop: 14,
+    },
+    clearText: {
+      color: "#DC143C",
+      fontWeight: "600",
+      fontSize: 14,
     },
     sectionTitle: {
       fontSize: 15,

@@ -8,7 +8,7 @@ export const STEPS = [
 
   {
     id: 1,
-    title: "Pre-Deployment Checklist",
+    title: "Pre-Deployment Checklist (only-once)",
     screen: "PreDeployment",
     type: "deployment",
   },
