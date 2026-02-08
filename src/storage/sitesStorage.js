@@ -3,70 +3,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const SITES_KEY = "sites_data";
 
 /*
-FULL SITE OBJECT (SINGLE SOURCE OF TRUTH)
+SINGLE SOURCE OF TRUTH – SITE OBJECT
 
 {
   id: "C1-S1",
   completed: false,
 
-  arrival: {
-    coords: { lat, lng, acc },
-    time: "",
-    accessIssue: false,
-    issueNote: ""
-  },
-
-  deviceSetup: {
-    deviceId: "",
-    customMode: false,
-    batteriesOk: false,
-    sdOk: false,
-    duration: ""
-  },
-
-  placement: {
-    heightOk: true,
-    micOut: true,
-    tiltDown: true,
-    awayFromTrail: true,
-    awayFromWater: true,
-    awayFromRoad: true,
-    secureAttach: true,
-    waterproof: true
-  },
-
-  documentation: {
-    weather: "",
-    wind: "",
-    rain: false,
-    rainNote: "",
-    disturbance: "",
-    notes: "",
-    coords: { lat, lng, acc },
-    timeDeployed: ""
-  },
+  arrival: { ... },
+  deviceSetup: { ... },
+  placement: { ... },
+  documentation: { ... },
 
   groundTruth: {
-    flora: {
-      vegType: "",
-      canopyCover: "",
-      canopyHeight: "",
-      understory: "",
-      stressObserved: false,
-      stressNote: ""
-    },
-    fauna: {
-      birdActivity: "",
-      birdNotes: "",
-      noiseLevel: ""
-    }
-  },
-
-  photos: {
-    landscape: null,
-    canopy: null,
-    device: null,
-    disturbance: null
+    flora: { ... },
+    fauna: { ... },
+    photos: { ... },
+    completedAt: ""
   }
 }
 */
@@ -84,68 +36,97 @@ export const DEFAULT_SITES = [
 ].map((id) => ({
   id,
   completed: false,
-
   arrival: null,
   deviceSetup: null,
   placement: null,
   documentation: null,
   groundTruth: null,
-  photos: null,
 }));
 
-/* ---------- INIT (APP START) ---------- */
+/* ---------- INTERNAL HELPERS ---------- */
 
-export const initSitesIfNeeded = async () => {
+const safeParse = (raw) => {
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const ensureInit = async () => {
   const raw = await AsyncStorage.getItem(SITES_KEY);
   if (!raw) {
     await AsyncStorage.setItem(
       SITES_KEY,
       JSON.stringify(DEFAULT_SITES)
     );
+    return DEFAULT_SITES;
   }
+
+  const parsed = safeParse(raw);
+  if (!parsed) {
+    await AsyncStorage.setItem(
+      SITES_KEY,
+      JSON.stringify(DEFAULT_SITES)
+    );
+    return DEFAULT_SITES;
+  }
+
+  return parsed;
+};
+
+/* ---------- INIT ---------- */
+
+export const initSitesIfNeeded = async () => {
+  await ensureInit();
 };
 
 /* ---------- GETTERS ---------- */
 
 export const getAllSites = async () => {
-  const raw = await AsyncStorage.getItem(SITES_KEY);
-  return raw ? JSON.parse(raw) : [];
+  return await ensureInit();
 };
 
 export const getSiteById = async (siteId) => {
-  const sites = await getAllSites();
-  return sites.find((s) => s.id === siteId);
+  const sites = await ensureInit();
+  return sites.find((s) => s.id === siteId) || null;
 };
 
 export const getCompletedSites = async () => {
-  const sites = await getAllSites();
+  const sites = await ensureInit();
   return sites.filter((s) => s.completed);
 };
 
 export const isAllSitesCompleted = async () => {
-  const sites = await getAllSites();
+  const sites = await ensureInit();
   return sites.length > 0 && sites.every((s) => s.completed);
 };
 
-/* ---------- CORE UPDATE FUNCTION ---------- */
-/*
-Use this in ALL screens:
-arrival / device / placement / documentation / groundTruth / photos
-*/
+/* ---------- UPDATE SITE (SAFE) ---------- */
 
 export const updateSite = async (siteId, sectionData) => {
-  const sites = await getAllSites();
+  if (!siteId || !sectionData) return;
 
-  const updated = sites.map((site) =>
-    site.id === siteId
-      ? {
-          ...site,
-          ...sectionData, // only overwrite given sections
-        }
-      : site
+  const sites = await ensureInit();
+  let found = false;
+
+  const updated = sites.map((site) => {
+    if (site.id !== siteId) return site;
+    found = true;
+    return {
+      ...site,
+      ...sectionData, // controlled overwrite (section-level only)
+    };
+  });
+
+  if (!found) {
+    throw new Error("Site not found: " + siteId);
+  }
+
+  await AsyncStorage.setItem(
+    SITES_KEY,
+    JSON.stringify(updated)
   );
-
-  await AsyncStorage.setItem(SITES_KEY, JSON.stringify(updated));
 };
 
 /* ---------- MARK SITE COMPLETED ---------- */
@@ -154,7 +135,7 @@ Call ONLY from GroundTruthScreen (final step)
 */
 
 export const markSiteCompleted = async (siteId) => {
-  const sites = await getAllSites();
+  const sites = await ensureInit();
 
   const updated = sites.map((site) =>
     site.id === siteId
@@ -162,10 +143,13 @@ export const markSiteCompleted = async (siteId) => {
       : site
   );
 
-  await AsyncStorage.setItem(SITES_KEY, JSON.stringify(updated));
+  await AsyncStorage.setItem(
+    SITES_KEY,
+    JSON.stringify(updated)
+  );
 };
 
-/* ---------- RESET (OPTIONAL / ADMIN) ---------- */
+/* ---------- RESET (ADMIN / DEBUG) ---------- */
 
 export const resetAllSites = async () => {
   await AsyncStorage.setItem(

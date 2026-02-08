@@ -8,8 +8,11 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { LightTheme, DarkTheme } from "../constants/theme";
 import { setCurrentStep } from "../storage/progressStorage";
+import { updateSite } from "../storage/sitesStorage";
 import Header from "../components/Header";
 
 export default function PlacementScreen({ navigation }) {
@@ -28,7 +31,7 @@ export default function PlacementScreen({ navigation }) {
   });
 
   const toggle = (key) =>
-    setChecks((p) => ({ ...p, [key]: !p[key] }));
+    setChecks((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const allDone = Object.values(checks).every(Boolean);
 
@@ -41,8 +44,29 @@ export default function PlacementScreen({ navigation }) {
       return;
     }
 
-    await setCurrentStep(5);
-    navigation.navigate("Documentation");
+    try {
+      const siteId = await AsyncStorage.getItem("currentSiteId");
+      if (!siteId) {
+        Alert.alert("Error", "No active site found.");
+        navigation.navigate("Home");
+        return;
+      }
+
+      await updateSite(siteId, {
+        placement: {
+          ...checks,
+          completedAt: new Date().toISOString(),
+        },
+      });
+
+      await setCurrentStep(5);
+      navigation.navigate("Documentation");
+    } catch (err) {
+      Alert.alert(
+        "Error",
+        "Failed to save placement data. Please retry."
+      );
+    }
   };
 
   return (
@@ -133,7 +157,6 @@ export default function PlacementScreen({ navigation }) {
           colors={colors}
         />
 
-        {/* Visual aid placeholder */}
         <View
           style={[
             styles.visualAid,
@@ -147,9 +170,14 @@ export default function PlacementScreen({ navigation }) {
         </View>
 
         <TouchableOpacity
+          disabled={!allDone}
           style={[
             styles.btn,
-            { backgroundColor: allDone ? "#2ecc71" : colors.border },
+            {
+              backgroundColor: allDone
+                ? "#2ecc71"
+                : colors.border,
+            },
           ]}
           onPress={onComplete}
         >
@@ -174,7 +202,11 @@ function CheckItem({ label, checked, onPress, colors }) {
       <View
         style={[
           styles.circle,
-          { backgroundColor: checked ? "#2ecc71" : "transparent" },
+          {
+            backgroundColor: checked
+              ? "#2ecc71"
+              : "transparent",
+          },
         ]}
       >
         {checked && <Text style={styles.tick}>✓</Text>}
@@ -188,15 +220,15 @@ function CheckItem({ label, checked, onPress, colors }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-  },
+  container: { padding: 20 },
+
   section: {
     marginTop: 8,
     marginBottom: 8,
     fontSize: 14,
     fontWeight: "500",
   },
+
   item: {
     flexDirection: "row",
     alignItems: "center",
@@ -205,6 +237,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     marginBottom: 10,
   },
+
   circle: {
     width: 22,
     height: 22,
@@ -215,14 +248,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 12,
   },
-  tick: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  text: {
-    flex: 1,
-    fontSize: 14,
-  },
+
+  tick: { color: "#fff", fontWeight: "600" },
+
+  text: { flex: 1, fontSize: 14 },
+
   visualAid: {
     marginTop: 16,
     padding: 12,
@@ -230,14 +260,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     opacity: 0.7,
   },
+
   btn: {
     marginTop: 24,
     padding: 16,
     borderRadius: 8,
     alignItems: "center",
   },
-  btnText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
+
+  btnText: { color: "#fff", fontWeight: "600" },
 });

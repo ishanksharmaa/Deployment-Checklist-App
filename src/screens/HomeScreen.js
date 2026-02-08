@@ -5,6 +5,7 @@ import {
   StyleSheet,
   useColorScheme,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 
@@ -28,12 +29,32 @@ export default function HomeScreen({ navigation }) {
     }, [])
   );
 
+  /* ---------- LOAD DATA ---------- */
   const loadData = async () => {
-    const step = await getCurrentStep();
-    setCurrentStep(step);
+    try {
+      const step = await getCurrentStep();
+      setCurrentStep(step || 1);
 
-    const done = await isAllSitesCompleted();
-    setAllSitesDone(done);
+      const done = await isAllSitesCompleted();
+      setAllSitesDone(done);
+    } catch (err) {
+      Alert.alert(
+        "Error",
+        "Failed to load app progress. Please restart the app."
+      );
+    }
+  };
+
+  /* ---------- STEP NAV GUARD ---------- */
+  const handleStepPress = (step) => {
+    if (step.id > currentStep) {
+      Alert.alert(
+        "Step locked",
+        "Complete previous steps before proceeding."
+      );
+      return;
+    }
+    navigation.navigate(step.screen);
   };
 
   return (
@@ -47,7 +68,7 @@ export default function HomeScreen({ navigation }) {
             key={step.id}
             step={step}
             currentStep={currentStep}
-            onPress={() => navigation.navigate(step.screen)}
+            onPress={() => handleStepPress(step)}
           />
         ))}
       </View>
@@ -72,6 +93,8 @@ export default function HomeScreen({ navigation }) {
     </View>
   );
 }
+
+/* ---------- styles ---------- */
 
 const getStyles = (colors) =>
   StyleSheet.create({

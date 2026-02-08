@@ -14,6 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { LightTheme, DarkTheme } from "../constants/theme";
 import { setCurrentStep } from "../storage/progressStorage";
+import { updateSite } from "../storage/sitesStorage";
 import Header from "../components/Header";
 
 export default function DocumentationScreen({ navigation }) {
@@ -37,76 +38,100 @@ export default function DocumentationScreen({ navigation }) {
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
-    loadSite();
-    captureLocationFast();
+    init();
   }, []);
 
-  const loadSite = async () => {
-    const site = await AsyncStorage.getItem("currentSiteId");
-    if (!site) {
-      Alert.alert("Error", "No active site found.");
-      navigation.navigate("Home");
-      return;
-    }
-    setCurrentSiteId(site);
+  const init = async () => {
+    await loadSite();
+    await captureLocationFast();
   };
 
-  const captureLocationFast = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission needed", "Location permission required.");
-      return;
+  /* ---------- LOAD SITE ---------- */
+  const loadSite = async () => {
+    try {
+      const site = await AsyncStorage.getItem("currentSiteId");
+      if (!site) {
+        Alert.alert("Error", "No active site found.");
+        navigation.navigate("Home");
+        return;
+      }
+      setCurrentSiteId(site);
+    } catch (err) {
+      Alert.alert("Error", "Failed to load site context.");
+      navigation.navigate("Home");
     }
+  };
 
-    const last = await Location.getLastKnownPositionAsync();
-    const loc =
-      last ||
-      (await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      }));
+  /* ---------- GPS ---------- */
+  const captureLocationFast = async () => {
+    try {
+      const { status } =
+        await Location.requestForegroundPermissionsAsync();
 
-    setCoords({
-      lat: loc.coords.latitude,
-      lng: loc.coords.longitude,
-      acc: loc.coords.accuracy,
-    });
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission needed",
+          "Location permission required."
+        );
+        return;
+      }
 
-    setTimeDeployed(new Date().toLocaleString());
+      const last = await Location.getLastKnownPositionAsync();
+      const loc =
+        last ||
+        (await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        }));
+
+      setCoords({
+        lat: loc.coords.latitude,
+        lng: loc.coords.longitude,
+        acc: loc.coords.accuracy,
+      });
+
+      setTimeDeployed(new Date().toLocaleString());
+    } catch (err) {
+      Alert.alert("GPS Error", "Unable to capture location.");
+    }
   };
 
   const canProceed =
+    currentSiteId &&
     coords &&
     weather &&
     wind &&
     recentRain !== null &&
     (!recentRain || rainNote.trim());
 
+  /* ---------- COMPLETE ---------- */
   const onComplete = async () => {
     if (!canProceed) {
       Alert.alert("Incomplete", "Please complete required fields.");
       return;
     }
 
-    const payload = {
-      coords,
-      timeDeployed,
-      weather,
-      wind,
-      recentRain,
-      rainNote: recentRain ? rainNote : "",
-      disturbance,
-      notes,
-    };
+    try {
+      await updateSite(currentSiteId, {
+        documentation: {
+          coords,
+          timeDeployed,
+          weather,
+          wind,
+          recentRain,
+          rainNote: recentRain ? rainNote : "",
+          disturbance,
+          notes,
+        },
+      });
 
-    const raw = await AsyncStorage.getItem("site_docs");
-    const docs = raw ? JSON.parse(raw) : {};
-
-    docs[currentSiteId] = payload;
-
-    await AsyncStorage.setItem("site_docs", JSON.stringify(docs));
-
-    await setCurrentStep(6);
-    navigation.navigate("GroundTruth");
+      await setCurrentStep(6);
+      navigation.navigate("GroundTruth");
+    } catch (err) {
+      Alert.alert(
+        "Error",
+        "Failed to save documentation. Please retry."
+      );
+    }
   };
 
   return (
@@ -128,7 +153,9 @@ export default function DocumentationScreen({ navigation }) {
               Accuracy: ±{Math.round(coords.acc)} m
             </Text>
           ) : (
-            <Text style={{ color: colors.text }}>Capturing location…</Text>
+            <Text style={{ color: colors.text }}>
+              Capturing location…
+            </Text>
           )}
 
           {timeDeployed && (
@@ -143,7 +170,13 @@ export default function DocumentationScreen({ navigation }) {
           value={weather}
           open={weatherOpen}
           setOpen={setWeatherOpen}
-          options={["Clear", "Cloudy", "Light Rain", "Heavy Rain", "Other"]}
+          options={[
+            "Clear",
+            "Cloudy",
+            "Light Rain",
+            "Heavy Rain",
+            "Other",
+          ]}
           onSelect={setWeather}
           colors={colors}
         />
@@ -175,7 +208,10 @@ export default function DocumentationScreen({ navigation }) {
             onChangeText={setRainNote}
             style={[
               styles.input,
-              { color: colors.text, borderColor: colors.border },
+              {
+                color: colors.text,
+                borderColor: colors.border,
+              },
             ]}
           />
         )}
@@ -218,15 +254,17 @@ export default function DocumentationScreen({ navigation }) {
         />
 
         <TouchableOpacity
+          disabled={!canProceed}
           style={[
             styles.btn,
             {
-              backgroundColor: canProceed ? "#2ecc71" : colors.border,
+              backgroundColor: canProceed
+                ? "#2ecc71"
+                : colors.border,
               opacity: canProceed ? 1 : 0.6,
             },
           ]}
           onPress={onComplete}
-          disabled={!canProceed}
         >
           <Text style={styles.btnText}>
             Documentation complete → Proceed
@@ -248,20 +286,34 @@ function ToggleBtn({ label, active, onPress, colors }) {
       ]}
       onPress={onPress}
     >
-      <Text style={{ color: active ? "#fff" : colors.text }}>{label}</Text>
+      <Text style={{ color: active ? "#fff" : colors.text }}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
 
-function Dropdown({ label, value, open, setOpen, options, onSelect, colors }) {
+function Dropdown({
+  label,
+  value,
+  open,
+  setOpen,
+  options,
+  onSelect,
+  colors,
+}) {
   return (
     <View style={{ marginBottom: 12 }}>
-      <Text style={[styles.section, { color: colors.text }]}>{label}</Text>
+      <Text style={[styles.section, { color: colors.text }]}>
+        {label}
+      </Text>
 
       <TouchableOpacity
         style={[
           styles.dropdown,
-          { borderColor: value ? "#2ecc71" : colors.border },
+          {
+            borderColor: value ? "#2ecc71" : colors.border,
+          },
         ]}
         onPress={() => setOpen(!open)}
       >
@@ -279,8 +331,12 @@ function Dropdown({ label, value, open, setOpen, options, onSelect, colors }) {
               style={[
                 styles.option,
                 {
-                  backgroundColor: selected ? "#2ecc71" : colors.card,
-                  borderColor: selected ? "#2ecc71" : colors.border,
+                  backgroundColor: selected
+                    ? "#2ecc71"
+                    : colors.card,
+                  borderColor: selected
+                    ? "#2ecc71"
+                    : colors.border,
                 },
               ]}
               onPress={() => {

@@ -34,13 +34,18 @@ export default function DeviceSetupScreen({ navigation }) {
   }, []);
 
   const loadSite = async () => {
-    const site = await AsyncStorage.getItem("currentSiteId");
-    if (!site) {
-      Alert.alert("Error", "No site selected.");
+    try {
+      const site = await AsyncStorage.getItem("currentSiteId");
+      if (!site) {
+        Alert.alert("Error", "No site selected.");
+        navigation.navigate("Home");
+        return;
+      }
+      setCurrentSiteId(site);
+    } catch (err) {
+      Alert.alert("Error", "Failed to load site data");
       navigation.navigate("Home");
-      return;
     }
-    setCurrentSiteId(site);
   };
 
   /* ---------- COMPLETE ---------- */
@@ -49,6 +54,7 @@ export default function DeviceSetupScreen({ navigation }) {
       Alert.alert("Missing info", "Please enter Device ID / Serial.");
       return;
     }
+
     if (!customMode || !batteryOk || !sdOk) {
       Alert.alert(
         "Checklist incomplete",
@@ -56,24 +62,34 @@ export default function DeviceSetupScreen({ navigation }) {
       );
       return;
     }
+
     if (!duration) {
-      Alert.alert("Missing info", "Select expected recording duration.");
+      Alert.alert(
+        "Missing info",
+        "Select expected recording duration."
+      );
       return;
     }
 
-    // save device setup into site object
-    await updateSite(currentSiteId, {
-      deviceSetup: {
-        deviceId,
-        customMode,
-        batteriesOk: batteryOk, // ✅ correct key
-        sdOk,
-        duration,
-      },
-    });
+    try {
+      await updateSite(currentSiteId, {
+        deviceSetup: {
+          deviceId: deviceId.trim(),
+          customMode,
+          batteriesOk: batteryOk,
+          sdOk,
+          duration, // stored as days (string)
+        },
+      });
 
-    await setCurrentStep(4);
-    navigation.navigate("Placement");
+      await setCurrentStep(4);
+      navigation.navigate("Placement");
+    } catch (err) {
+      Alert.alert(
+        "Error",
+        "Failed to save device setup. Please try again."
+      );
+    }
   };
 
   return (
@@ -177,7 +193,11 @@ function CheckItem({ label, checked, onPress, colors }) {
       <View
         style={[
           styles.circle,
-          { backgroundColor: checked ? "#2ecc71" : "transparent" },
+          {
+            backgroundColor: checked
+              ? "#2ecc71"
+              : "transparent",
+          },
         ]}
       >
         {checked && <Text style={styles.tick}>✓</Text>}
@@ -195,7 +215,9 @@ function DurationBtn({ label, active, onPress }) {
     <TouchableOpacity
       style={[
         styles.durationBtn,
-        { backgroundColor: active ? "#2ecc71" : "#ccc" },
+        {
+          backgroundColor: active ? "#2ecc71" : "#ccc",
+        },
       ]}
       onPress={onPress}
     >
@@ -242,9 +264,16 @@ const styles = StyleSheet.create({
 
   checkText: { flex: 1, fontSize: 14 },
 
-  subTitle: { marginTop: 16, marginBottom: 8, fontSize: 14 },
+  subTitle: {
+    marginTop: 16,
+    marginBottom: 8,
+    fontSize: 14,
+  },
 
-  row: { flexDirection: "row", justifyContent: "space-between" },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
 
   durationBtn: {
     flex: 1,
@@ -267,5 +296,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  btnText: { color: "#fff", fontWeight: "600" },
+  btnText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
 });

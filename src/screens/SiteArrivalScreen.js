@@ -12,12 +12,8 @@ import {
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import {
-  getAllSites,
-  updateSite,
-} from "../storage/sitesStorage";
+import { getAllSites, updateSite } from "../storage/sitesStorage";
 import { setCurrentStep } from "../storage/progressStorage";
-import { updateSite } from "../storage/sitesStorage";
 import { LightTheme, DarkTheme } from "../constants/theme";
 import Header from "../components/Header";
 
@@ -41,36 +37,45 @@ export default function SiteArrivalScreen({ navigation }) {
 
   /* ---------- LOAD SITES ---------- */
   const loadSites = async () => {
-    const data = await getAllSites();
-    setSites(data);
+    try {
+      const data = await getAllSites();
+      setSites(data);
+    } catch (err) {
+      Alert.alert("Error", "Failed to load sites");
+    }
   };
 
   /* ---------- FAST GPS ---------- */
   const captureLocationFast = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") return;
+    try {
+      const { status } =
+        await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") return;
 
-    const last = await Location.getLastKnownPositionAsync();
-    if (last) {
+      const last = await Location.getLastKnownPositionAsync();
+      if (last) {
+        setCoords({
+          lat: last.coords.latitude,
+          lng: last.coords.longitude,
+          acc: last.coords.accuracy,
+        });
+        setArrivalTime(new Date().toLocaleTimeString());
+        return;
+      }
+
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
       setCoords({
-        lat: last.coords.latitude,
-        lng: last.coords.longitude,
-        acc: last.coords.accuracy,
+        lat: loc.coords.latitude,
+        lng: loc.coords.longitude,
+        acc: loc.coords.accuracy,
       });
       setArrivalTime(new Date().toLocaleTimeString());
-      return;
+    } catch (err) {
+      Alert.alert("GPS Error", "Unable to capture location");
     }
-
-    const loc = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
-
-    setCoords({
-      lat: loc.coords.latitude,
-      lng: loc.coords.longitude,
-      acc: loc.coords.accuracy,
-    });
-    setArrivalTime(new Date().toLocaleTimeString());
   };
 
   /* ---------- SELECT SITE ---------- */
@@ -101,29 +106,23 @@ export default function SiteArrivalScreen({ navigation }) {
       return;
     }
 
-    // save arrival data into site object
-    await updateSite(siteId, {
-      arrival: {
-        coords,
-        time: arrivalTime,
-        accessIssue: hasIssue,
-        issueNote: issueText || "",
-      },
-    });
+    try {
+      await updateSite(siteId, {
+        arrival: {
+          coords,
+          time: arrivalTime,
+          accessIssue: hasIssue,
+          issueNote: issueText || "",
+        },
+      });
 
-    // keep current site for next screens
-    await AsyncStorage.setItem("currentSiteId", siteId);
-    await updateSite(siteId, {
-  arrival: {
-    coords,
-    time: arrivalTime,
-    accessIssue: hasIssue,
-    issueNote: issueText,
-  },
-});
+      await AsyncStorage.setItem("currentSiteId", siteId);
+      await setCurrentStep(3);
 
-    await setCurrentStep(3);
-    navigation.navigate("DeviceSetup");
+      navigation.navigate("DeviceSetup");
+    } catch (err) {
+      Alert.alert("Error", "Failed to save arrival data");
+    }
   };
 
   return (
@@ -149,7 +148,10 @@ export default function SiteArrivalScreen({ navigation }) {
           <View
             style={[
               styles.list,
-              { borderColor: colors.border, backgroundColor: colors.card },
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+              },
             ]}
           >
             {sites.map((site) => (
@@ -182,7 +184,8 @@ export default function SiteArrivalScreen({ navigation }) {
 
           {coords && (
             <Text style={{ color: colors.text, marginTop: 6 }}>
-              Lat {coords.lat.toFixed(5)}, Lng {coords.lng.toFixed(5)}
+              Lat {coords.lat.toFixed(5)}, Lng{" "}
+              {coords.lng.toFixed(5)}
             </Text>
           )}
 
@@ -198,11 +201,19 @@ export default function SiteArrivalScreen({ navigation }) {
           <TouchableOpacity
             style={[
               styles.choice,
-              { backgroundColor: hasIssue ? "#e74c3c" : colors.card },
+              {
+                backgroundColor: hasIssue
+                  ? "#e74c3c"
+                  : colors.card,
+              },
             ]}
             onPress={() => setHasIssue(true)}
           >
-            <Text style={{ color: hasIssue ? "#fff" : colors.text }}>
+            <Text
+              style={{
+                color: hasIssue ? "#fff" : colors.text,
+              }}
+            >
               Access Issue: Yes
             </Text>
           </TouchableOpacity>
@@ -210,11 +221,19 @@ export default function SiteArrivalScreen({ navigation }) {
           <TouchableOpacity
             style={[
               styles.choice,
-              { backgroundColor: !hasIssue ? "#2ecc71" : colors.card },
+              {
+                backgroundColor: !hasIssue
+                  ? "#2ecc71"
+                  : colors.card,
+              },
             ]}
             onPress={() => setHasIssue(false)}
           >
-            <Text style={{ color: !hasIssue ? "#fff" : colors.text }}>
+            <Text
+              style={{
+                color: !hasIssue ? "#fff" : colors.text,
+              }}
+            >
               Access Issue: No
             </Text>
           </TouchableOpacity>
@@ -228,7 +247,10 @@ export default function SiteArrivalScreen({ navigation }) {
             onChangeText={setIssueText}
             style={[
               styles.input,
-              { color: colors.text, borderColor: colors.border },
+              {
+                color: colors.text,
+                borderColor: colors.border,
+              },
             ]}
           />
         )}
@@ -238,7 +260,9 @@ export default function SiteArrivalScreen({ navigation }) {
           style={[styles.btn, { backgroundColor: "#2ecc71" }]}
           onPress={onConfirm}
         >
-          <Text style={styles.btnText}>GPS confirmed → Proceed</Text>
+          <Text style={styles.btnText}>
+            GPS confirmed → Proceed
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -279,7 +303,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  row: { flexDirection: "row", justifyContent: "space-between" },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
 
   choice: {
     flex: 1,
@@ -303,5 +330,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  btnText: { color: "#fff", fontWeight: "600" },
+  btnText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
 });

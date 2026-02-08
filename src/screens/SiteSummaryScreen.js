@@ -33,8 +33,12 @@ export default function SiteSummaryScreen({ navigation }) {
   }, []);
 
   const loadSites = async () => {
-    const data = await getAllSites();
-    setSites(data);
+    try {
+      const data = await getAllSites();
+      setSites(data);
+    } catch {
+      Alert.alert("Error", "Failed to load sites");
+    }
   };
 
   const onSelectSite = async (site) => {
@@ -46,20 +50,23 @@ export default function SiteSummaryScreen({ navigation }) {
       return;
     }
 
-    const fullSite = await getSiteById(site.id);
-    setSelectedSiteId(site.id);
-    setSelectedSite(fullSite);
-    setOpen(false);
+    try {
+      const fullSite = await getSiteById(site.id);
+      setSelectedSiteId(site.id);
+      setSelectedSite(fullSite);
+      setOpen(false);
+    } catch {
+      Alert.alert("Error", "Unable to load site summary");
+    }
   };
 
   const onProceed = async () => {
-    await setCurrentStep(2);
-
-    const allDone = await isAllSitesCompleted();
-    if (allDone) {
-      navigation.replace("DailySummary");
-    } else {
-      navigation.navigate("Home");
+    try {
+      await setCurrentStep(2);
+      const allDone = await isAllSitesCompleted();
+      navigation.replace(allDone ? "DailySummary" : "Home");
+    } catch {
+      Alert.alert("Error", "Navigation failed");
     }
   };
 
@@ -72,9 +79,9 @@ export default function SiteSummaryScreen({ navigation }) {
       />
 
       <ScrollView contentContainerStyle={styles.container}>
-        {/* ---------- SITE DROPDOWN ---------- */}
+        {/* SITE SELECT */}
         <Text style={[styles.label, { color: colors.text }]}>
-          Select site
+          Select completed site
         </Text>
 
         <TouchableOpacity
@@ -96,9 +103,7 @@ export default function SiteSummaryScreen({ navigation }) {
                   backgroundColor: site.completed
                     ? colors.card
                     : "#00000010",
-                  borderColor: site.completed
-                    ? colors.border
-                    : "#ccc",
+                  borderColor: colors.border,
                 },
               ]}
               onPress={() => onSelectSite(site)}
@@ -114,87 +119,87 @@ export default function SiteSummaryScreen({ navigation }) {
             </TouchableOpacity>
           ))}
 
-        {/* ---------- SUMMARY ---------- */}
+        {/* SUMMARY */}
         {selectedSite ? (
-          <View>
+          <>
             {/* ARRIVAL */}
-            <Section title="Site Arrival" colors={colors}>
+            <Section title="Arrival" colors={colors}>
               <Row label="Latitude" value={selectedSite.arrival?.coords?.lat} />
               <Row label="Longitude" value={selectedSite.arrival?.coords?.lng} />
+              <Row label="Accuracy (m)" value={selectedSite.arrival?.coords?.acc} />
               <Row label="Time" value={selectedSite.arrival?.time} />
               <Row
                 label="Access Issue"
-                value={
-                  selectedSite.arrival?.accessIssue ? "Yes" : "No"
-                }
+                value={selectedSite.arrival?.accessIssue ? "Yes" : "No"}
               />
-              {selectedSite.arrival?.issueNote ? (
-                <Row
-                  label="Issue Note"
-                  value={selectedSite.arrival.issueNote}
-                />
-              ) : null}
+              <Row label="Issue Note" value={selectedSite.arrival?.issueNote} />
             </Section>
 
             {/* DEVICE */}
             <Section title="Device Setup" colors={colors}>
               <Row label="Device ID" value={selectedSite.deviceSetup?.deviceId} />
-              <Row label="Custom Mode" value={selectedSite.deviceSetup?.customMode ? "Yes" : "No"} />
-              <Row label="Batteries OK" value={selectedSite.deviceSetup?.batteriesOk ? "Yes" : "No"} />
-              <Row label="SD Card OK" value={selectedSite.deviceSetup?.sdOk ? "Yes" : "No"} />
-              <Row label="Duration" value={selectedSite.deviceSetup?.duration} />
+              <Row label="Custom Mode" value={bool(selectedSite.deviceSetup?.customMode)} />
+              <Row label="Batteries OK" value={bool(selectedSite.deviceSetup?.batteriesOk)} />
+              <Row label="SD Card OK" value={bool(selectedSite.deviceSetup?.sdOk)} />
+              <Row label="Duration (days)" value={selectedSite.deviceSetup?.duration} />
             </Section>
 
             {/* PLACEMENT */}
             <Section title="Placement" colors={colors}>
-              <Text style={styles.okText}>✓ All placement checks completed</Text>
+              <Text style={styles.okText}>✓ All placement checks passed</Text>
             </Section>
 
             {/* DOCUMENTATION */}
-            <Section title="Deployment Documentation" colors={colors}>
+            <Section title="Documentation" colors={colors}>
               <Row label="Weather" value={selectedSite.documentation?.weather} />
               <Row label="Wind" value={selectedSite.documentation?.wind} />
-              <Row label="Recent Rain" value={selectedSite.documentation?.rain ? "Yes" : "No"} />
-              {selectedSite.documentation?.rainNote ? (
-                <Row label="Rain Note" value={selectedSite.documentation.rainNote} />
-              ) : null}
-              {selectedSite.documentation?.disturbance ? (
-                <Row label="Disturbance" value={selectedSite.documentation.disturbance} />
-              ) : null}
-              {selectedSite.documentation?.notes ? (
-                <Row label="Notes" value={selectedSite.documentation.notes} />
-              ) : null}
+              <Row
+                label="Recent Rain"
+                value={bool(selectedSite.documentation?.recentRain)}
+              />
+              <Row label="Rain Note" value={selectedSite.documentation?.rainNote} />
+              <Row label="Disturbance" value={selectedSite.documentation?.disturbance} />
+              <Row label="Notes" value={selectedSite.documentation?.notes} />
+              <Row label="Time Deployed" value={selectedSite.documentation?.timeDeployed} />
             </Section>
 
             {/* GROUND TRUTH */}
-            <Section title="Ground Truthing" colors={colors}>
+            <Section title="Ground Truth" colors={colors}>
               <Row label="Vegetation" value={selectedSite.groundTruth?.flora?.vegType} />
               <Row label="Canopy Cover" value={selectedSite.groundTruth?.flora?.canopyCover} />
               <Row label="Canopy Height" value={selectedSite.groundTruth?.flora?.canopyHeight} />
               <Row label="Understory" value={selectedSite.groundTruth?.flora?.understory} />
+              <Row
+                label="Stress Observed"
+                value={bool(selectedSite.groundTruth?.flora?.stressObserved)}
+              />
+              <Row label="Stress Note" value={selectedSite.groundTruth?.flora?.stressNote} />
               <Row label="Bird Activity" value={selectedSite.groundTruth?.fauna?.birdActivity} />
               <Row label="Noise Level" value={selectedSite.groundTruth?.fauna?.noiseLevel} />
+              <Row label="Completed At" value={selectedSite.groundTruth?.completedAt} />
             </Section>
 
             {/* PHOTOS */}
             <Section title="Photos" colors={colors}>
-              <Photo uri={selectedSite.photos?.landscape} label="Landscape" />
-              <Photo uri={selectedSite.photos?.canopy} label="Canopy" />
-              <Photo uri={selectedSite.photos?.device} label="Device Placement" />
-              {selectedSite.photos?.disturbance && (
-                <Photo uri={selectedSite.photos.disturbance} label="Disturbance" />
+              <Photo uri={selectedSite.groundTruth?.photos?.landscape} label="Landscape" />
+              <Photo uri={selectedSite.groundTruth?.photos?.canopy} label="Canopy" />
+              <Photo uri={selectedSite.groundTruth?.photos?.device} label="Device" />
+              {selectedSite.groundTruth?.photos?.disturbance && (
+                <Photo
+                  uri={selectedSite.groundTruth.photos.disturbance}
+                  label="Disturbance"
+                />
               )}
             </Section>
-          </View>
+          </>
         ) : (
           <View style={styles.empty}>
             <Text style={{ color: colors.text, opacity: 0.6 }}>
-              Select a completed site to view summary
+              Select a completed site to view full summary
             </Text>
           </View>
         )}
 
-        {/* PROCEED */}
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: "#2ecc71" }]}
           onPress={onProceed}
@@ -206,7 +211,9 @@ export default function SiteSummaryScreen({ navigation }) {
   );
 }
 
-/* ---------- SMALL COMPONENTS -------- */
+/* ---------- HELPERS ---------- */
+
+const bool = (v) => (v === true ? "Yes" : v === false ? "No" : "");
 
 function Section({ title, children, colors }) {
   return (
@@ -218,7 +225,7 @@ function Section({ title, children, colors }) {
 }
 
 function Row({ label, value }) {
-  if (!value) return null;
+  if (value === undefined || value === null || value === "") return null;
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -228,8 +235,9 @@ function Row({ label, value }) {
 }
 
 function Photo({ uri, label }) {
+  if (!uri) return null;
   return (
-    <View style={{ marginTop: 10 }}>
+    <View style={{ marginTop: 12 }}>
       <Text style={styles.photoLabel}>{label}</Text>
       <Image source={{ uri }} style={styles.photo} />
     </View>
