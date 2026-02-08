@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   useColorScheme,
   Alert,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 
 import { LightTheme, DarkTheme } from "../constants/theme";
 import Header from "../components/Header";
@@ -22,22 +23,32 @@ export default function DailySummaryScreen({ navigation }) {
 
   const [completedCount, setCompletedCount] = useState(0);
   const [totalSites, setTotalSites] = useState(0);
+  const [allDone, setAllDone] = useState(false);
 
-  useEffect(() => {
-    loadSummary();
-  }, []);
+  /* ---------- LOAD SUMMARY ON FOCUS ---------- */
+  useFocusEffect(
+    useCallback(() => {
+      loadSummary();
+    }, [])
+  );
 
   const loadSummary = async () => {
-    const sites = await getAllSites();
-    const completed = sites.filter((s) => s.completed);
+    try {
+      const sites = await getAllSites();
+      const completed = sites.filter((s) => s.completed);
 
-    setCompletedCount(completed.length);
-    setTotalSites(sites.length);
+      setCompletedCount(completed.length);
+      setTotalSites(sites.length);
+
+      const done = await isAllSitesCompleted();
+      setAllDone(done);
+    } catch (err) {
+      Alert.alert("Error", "Failed to load daily summary.");
+    }
   };
 
+  /* ---------- FINISH DAY ---------- */
   const onFinishDay = async () => {
-    const allDone = await isAllSitesCompleted();
-
     if (!allDone) {
       Alert.alert(
         "Deployment incomplete",
@@ -46,13 +57,18 @@ export default function DailySummaryScreen({ navigation }) {
       return;
     }
 
-    // Clear temporary session data (NOT site data)
-    await AsyncStorage.multiRemove([
-      "currentSiteId",
-    ]);
+    try {
+      // Clear temporary session data (NOT site data)
+      await AsyncStorage.multiRemove(["currentSiteId"]);
 
-    // Go back to start (Home)
-    navigation.popToTop();
+      // Reset navigation to Home
+      navigation.popToTop();
+    } catch (err) {
+      Alert.alert(
+        "Error",
+        "Failed to close deployment day."
+      );
+    }
   };
 
   return (
@@ -83,7 +99,16 @@ export default function DailySummaryScreen({ navigation }) {
         </View>
 
         <TouchableOpacity
-          style={[styles.btn, { backgroundColor: "#2ecc71" }]}
+          disabled={!allDone}
+          style={[
+            styles.btn,
+            {
+              backgroundColor: allDone
+                ? "#2ecc71"
+                : colors.border,
+              opacity: allDone ? 1 : 0.6,
+            },
+          ]}
           onPress={onFinishDay}
         >
           <Text style={styles.btnText}>
