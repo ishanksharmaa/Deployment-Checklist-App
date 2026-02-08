@@ -4,25 +4,34 @@
     "slug": "checklist-app",
     "version": "1.0.0",
     "orientation": "portrait",
+
+    "userInterfaceStyle": "automatic",
+
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": true
-    },
+
+    "assetBundlePatterns": ["**/*"],
+
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
+      },
+      "statusBar": {
+        "backgroundColor": "transparent",
+        "translucent": true
       }
     },
+
+    "ios": {
+      "supportsTablet": true
+    },
+
     "web": {
       "favicon": "./assets/favicon.png"
     }

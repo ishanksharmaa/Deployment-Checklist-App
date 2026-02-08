@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,28 +11,51 @@ import {
   ScrollView,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { LightTheme, DarkTheme } from "../constants/theme";
 import { setCurrentStep } from "../storage/progressStorage";
+import { markSiteCompleted } from "../storage/sitesStorage";
+import Header from "../components/Header";
 
-const VEGETATION_TYPES = [
-  "Dense Forest",
-  "Open Woodland",
-  "Scrubland",
-  "Grassland",
-  "Wetland",
-  "Plantation",
-  "Agriculture",
-  "Mixed",
-];
+const STORAGE_KEY = "site_groundtruth";
 
 export default function GroundTruthScreen({ navigation }) {
   const scheme = useColorScheme();
   const colors = scheme === "dark" ? DarkTheme : LightTheme;
 
+  const [tab, setTab] = useState("flora");
+  const [currentSiteId, setCurrentSiteId] = useState("");
+
+  /* ---------- LOAD SITE ---------- */
+  useEffect(() => {
+    loadSite();
+  }, []);
+
+  const loadSite = async () => {
+    const site = await AsyncStorage.getItem("currentSiteId");
+    if (!site) {
+      Alert.alert("Error", "No site selected.");
+      navigation.navigate("Home");
+      return;
+    }
+    setCurrentSiteId(site);
+  };
+
+  /* ---------- FLORA ---------- */
   const [vegType, setVegType] = useState("");
-  const [stressYes, setStressYes] = useState(false);
+  const [canopyCover, setCanopyCover] = useState("");
+  const [canopyHeight, setCanopyHeight] = useState("");
+  const [understory, setUnderstory] = useState("");
+  const [stressObserved, setStressObserved] = useState(false);
   const [stressNote, setStressNote] = useState("");
 
+  /* ---------- FAUNA ---------- */
+  const [birdActivity, setBirdActivity] = useState("");
+  const [birdNotes, setBirdNotes] = useState("");
+  const [noiseLevel, setNoiseLevel] = useState("");
+
+  /* ---------- PHOTOS ---------- */
   const [photos, setPhotos] = useState({
     landscape: null,
     canopy: null,
@@ -43,207 +66,339 @@ export default function GroundTruthScreen({ navigation }) {
   const takePhoto = async (key) => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Camera permission is required.");
+      Alert.alert("Permission needed", "Camera permission required.");
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
-    if (!result.canceled) {
-      setPhotos((p) => ({ ...p, [key]: result.assets[0].uri }));
+    const res = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+    if (!res.canceled) {
+      setPhotos((p) => ({ ...p, [key]: res.assets[0].uri }));
     }
   };
 
-  const onComplete = async () => {
-    if (!vegType) {
-      Alert.alert("Missing info", "Select vegetation type.");
+  /* ---------- VALIDATION ---------- */
+
+  const floraComplete =
+    vegType &&
+    canopyCover &&
+    canopyHeight &&
+    understory &&
+    photos.canopy &&
+    (!stressObserved || stressNote.trim());
+
+  const faunaComplete = birdActivity && noiseLevel;
+
+  const photosComplete =
+    photos.landscape &&
+    photos.canopy &&
+    photos.device &&
+    (!stressObserved || photos.disturbance);
+
+  /* ---------- SAVE & FINISH ---------- */
+  const onFinish = async () => {
+    if (!photosComplete) {
+      Alert.alert("Incomplete", "Please capture all required photos.");
       return;
     }
-    if (stressYes && !stressNote.trim()) {
-      Alert.alert("Details needed", "Describe observed stress.");
-      return;
-    }
-    if (!photos.landscape || !photos.canopy || !photos.device) {
-      Alert.alert(
-        "Photos missing",
-        "Landscape, canopy and device photos are required."
-      );
-      return;
-    }
-    // step 6 complete
-    await setCurrentStep(7);
-    navigation.goBack();
-    // next = Site Summary
+
+    const payload = {
+      flora: {
+        vegType,
+        canopyCover,
+        canopyHeight,
+        understory,
+        stressObserved,
+        stressNote,
+      },
+      fauna: {
+        birdActivity,
+        birdNotes,
+        noiseLevel,
+      },
+      photos,
+    };
+
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    const allData = raw ? JSON.parse(raw) : {};
+
+    allData[currentSiteId] = payload;
+
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
+
+    await markSiteCompleted(currentSiteId);
+    await setCurrentStep(2);
+
+    navigation.replace("SiteSummary");
   };
 
   return (
-      <ScrollView
-    style={{ backgroundColor: colors.background }}
-    contentContainerStyle={styles.container}
-    showsVerticalScrollIndicator={false}
-  >
-      <Text style={[styles.title, { color: colors.text }]}>
-        Ground Truthing & Photos
-      </Text>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <Header
+        title={`Ground Truthing (${currentSiteId})`}
+        colors={colors}
+        onBack={() => navigation.goBack()}
+      />
 
-      <Text style={[styles.sub, { color: colors.text }]}>
-        Dominant vegetation type
-      </Text>
+      {/* TABS */}
+      <View style={styles.tabs}>
+        {["flora", "fauna", "photos"].map((t) => {
+          const disabled =
+            (t === "fauna" && !floraComplete) ||
+            (t === "photos" && !faunaComplete);
 
-      {VEGETATION_TYPES.map((item) => (
-        <TouchableOpacity
-          key={item}
-          style={[
-            styles.option,
-            { borderColor: vegType === item ? "#2ecc71" : colors.border },
-          ]}
-          onPress={() => setVegType(item)}
-        >
-          <View
-            style={[
-              styles.circle,
-              { backgroundColor: vegType === item ? "#2ecc71" : "transparent" },
-            ]}
-          >
-            {vegType === item && <Text style={styles.tick}>✓</Text>}
-          </View>
-          <Text style={[styles.optionText, { color: colors.text }]}>
-            {item}
-          </Text>
-        </TouchableOpacity>
-      ))}
-
-      <Text style={[styles.sub, { color: colors.text, marginTop: 10 }]}>
-        Ecological stress observed?
-      </Text>
-
-      <View style={styles.row}>
-        <TouchableOpacity
-          style={[
-            styles.choice,
-            { backgroundColor: stressYes ? "#2ecc71" : colors.card },
-          ]}
-          onPress={() => setStressYes(true)}
-        >
-          <Text style={{ color: stressYes ? "#fff" : colors.text }}>Yes</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.choice,
-            { backgroundColor: !stressYes ? "#2ecc71" : colors.card },
-          ]}
-          onPress={() => setStressYes(false)}
-        >
-          <Text style={{ color: !stressYes ? "#fff" : colors.text }}>No</Text>
-        </TouchableOpacity>
+          return (
+            <TouchableOpacity
+              key={t}
+              disabled={disabled}
+              style={[
+                styles.tab,
+                {
+                  backgroundColor: tab === t ? "#2ecc71" : colors.card,
+                  opacity: disabled ? 0.4 : 1,
+                },
+              ]}
+              onPress={() => setTab(t)}
+            >
+              <Text style={{ color: tab === t ? "#fff" : colors.text }}>
+                {t.toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      {stressYes && (
-        <TextInput
-          placeholder="Describe stress (short)"
-          placeholderTextColor="#888"
-          value={stressNote}
-          onChangeText={setStressNote}
-          style={[
-            styles.input,
-            { color: colors.text, borderColor: colors.border },
-          ]}
-        />
-      )}
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* ---------- FLORA ---------- */}
+        {tab === "flora" && (
+          <>
+            <Dropdown label="Dominant vegetation type" value={vegType}
+              options={[
+                "Dense Forest",
+                "Open Woodland",
+                "Scrubland",
+                "Grassland",
+                "Wetland",
+                "Plantation",
+                "Agriculture",
+                "Mixed",
+              ]}
+              onSelect={setVegType}
+              colors={colors}
+            />
 
-      <Text style={[styles.sub, { color: colors.text, marginTop: 12 }]}>
-        Photo documentation
-      </Text>
+            <Dropdown label="Canopy cover" value={canopyCover}
+              options={["<25%", "25-50%", "50-75%", ">75%"]}
+              onSelect={setCanopyCover}
+              colors={colors}
+            />
 
-      <PhotoRow
-        label="Landscape (required)"
-        uri={photos.landscape}
-        onPress={() => takePhoto("landscape")}
-        colors={colors}
-      />
-      <PhotoRow
-        label="Canopy (required)"
-        uri={photos.canopy}
-        onPress={() => takePhoto("canopy")}
-        colors={colors}
-      />
-      <PhotoRow
-        label="Device placement (required)"
-        uri={photos.device}
-        onPress={() => takePhoto("device")}
-        colors={colors}
-      />
-      <PhotoRow
-        label="Disturbance (optional)"
-        uri={photos.disturbance}
-        onPress={() => takePhoto("disturbance")}
-        colors={colors}
-      />
+            <Dropdown label="Canopy height" value={canopyHeight}
+              options={["<5m", "5-15m", "15-25m", ">25m"]}
+              onSelect={setCanopyHeight}
+              colors={colors}
+            />
 
-      <TouchableOpacity
-        style={[styles.btn, { backgroundColor: "#2ecc71" }]}
-        onPress={onComplete}
-      >
-        <Text style={styles.btnText}>Save & proceed</Text>
-      </TouchableOpacity>
-    </ScrollView>
+            <Text style={[styles.h, { color: colors.text }]}>Understory density</Text>
+            {["Sparse", "Moderate", "Dense"].map((v) => (
+              <Option key={v} value={v} selected={understory} set={setUnderstory} colors={colors} />
+            ))}
+
+            <Text style={[styles.h, { color: colors.text }]}>Ecological stress observed?</Text>
+            <View style={styles.row}>
+              <Toggle label="Yes" active={stressObserved} onPress={() => setStressObserved(true)} colors={colors} />
+              <Toggle label="No" active={!stressObserved} onPress={() => { setStressObserved(false); setStressNote(""); }} colors={colors} />
+            </View>
+
+            {stressObserved && (
+              <TextInput
+                placeholder="Describe observed stress"
+                placeholderTextColor="#888"
+                value={stressNote}
+                onChangeText={setStressNote}
+                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+              />
+            )}
+
+            <PhotoRow label="Canopy photo (mandatory)" uri={photos.canopy} onPress={() => takePhoto("canopy")} />
+
+            <ProceedBtn enabled={floraComplete} label="Flora complete → Proceed to Fauna" onPress={() => setTab("fauna")} />
+          </>
+        )}
+
+        {/* ---------- FAUNA ---------- */}
+        {tab === "fauna" && (
+          <>
+            <Text style={[styles.h, { color: colors.text }]}>Bird activity level</Text>
+            {["Silent", "Low", "Moderate", "High"].map((v) => (
+              <Option key={v} value={v} selected={birdActivity} set={setBirdActivity} colors={colors} />
+            ))}
+
+            <TextInput
+              placeholder="Bird species observed (optional)"
+              placeholderTextColor="#888"
+              value={birdNotes}
+              onChangeText={setBirdNotes}
+              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+            />
+
+            <Text style={[styles.h, { color: colors.text }]}>Ambient noise level</Text>
+            {["Natural quiet", "Distant activity", "Nearby activity", "Constant noise"].map((v) => (
+              <Option key={v} value={v} selected={noiseLevel} set={setNoiseLevel} colors={colors} />
+            ))}
+
+            <ProceedBtn enabled={faunaComplete} label="Fauna complete → Proceed to Photos" onPress={() => setTab("photos")} />
+          </>
+        )}
+
+        {/* ---------- PHOTOS ---------- */}
+        {tab === "photos" && (
+          <>
+            <PhotoRow label="Landscape photo (mandatory)" uri={photos.landscape} onPress={() => takePhoto("landscape")} />
+            <PhotoRow label="Canopy photo (mandatory)" uri={photos.canopy} onPress={() => takePhoto("canopy")} />
+            <PhotoRow label="Device placement photo (mandatory)" uri={photos.device} onPress={() => takePhoto("device")} />
+            {stressObserved && (
+              <PhotoRow label="Disturbance photo (mandatory)" uri={photos.disturbance} onPress={() => takePhoto("disturbance")} />
+            )}
+
+            <ProceedBtn enabled={photosComplete} label="Complete site → Proceed" onPress={onFinish} />
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
-function PhotoRow({ label, uri, onPress, colors }) {
+/* ---------- reusable components ---------- */
+/* (same helpers + styles as before, unchanged) */
+
+
+/* ---------- helpers ---------- */
+
+function Dropdown({ label, value, options, onSelect, colors }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ marginBottom: 12 }}>
+      <Text style={[styles.h, { color: colors.text }]}>{label}</Text>
+      <TouchableOpacity
+        style={[
+          styles.dropdown,
+          { borderColor: value ? "#2ecc71" : colors.border },
+        ]}
+        onPress={() => setOpen(!open)}
+      >
+        <Text style={{ color: value ? colors.text : "#888" }}>
+          {value || "Select"}
+        </Text>
+      </TouchableOpacity>
+
+      {open &&
+        options.map((o) => {
+          const active = o === value;
+          return (
+            <TouchableOpacity
+              key={o}
+              style={[
+                styles.option,
+                {
+                  backgroundColor: active ? "#2ecc71" : colors.card,
+                  borderColor: active ? "#2ecc71" : colors.border,
+                },
+              ]}
+              onPress={() => {
+                onSelect(o);
+                setOpen(false);
+              }}
+            >
+              <Text style={{ color: active ? "#fff" : colors.text }}>
+                {o}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+    </View>
+  );
+}
+
+function Option({ value, selected, set, colors }) {
+  const active = value === selected;
   return (
     <TouchableOpacity
       style={[
-        styles.photoRow,
-        { borderColor: uri ? "#2ecc71" : colors.border },
+        styles.option,
+        {
+          borderColor: active ? "#2ecc71" : colors.border,
+          backgroundColor: active ? "#2ecc71" : "transparent",
+        },
       ]}
-      onPress={onPress}
+      onPress={() => set(value)}
     >
-      {uri ? (
-        <Image source={{ uri }} style={styles.thumb} />
-      ) : (
-        <View style={styles.placeholder}>
-          <Text style={{ color: "#888" }}>Tap</Text>
-        </View>
-      )}
-      <Text style={[styles.photoText, { color: colors.text }]}>
-        {label}
+      <Text style={{ color: active ? "#fff" : colors.text }}>
+        {value}
       </Text>
     </TouchableOpacity>
   );
 }
 
+function Toggle({ label, active, onPress, colors }) {
+  return (
+    <TouchableOpacity
+      style={[
+        styles.toggle,
+        { backgroundColor: active ? "#2ecc71" : colors.card },
+      ]}
+      onPress={onPress}
+    >
+      <Text style={{ color: active ? "#fff" : colors.text }}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function PhotoRow({ label, uri, onPress }) {
+  return (
+    <TouchableOpacity
+      style={[styles.photoRow, { borderColor: "#999" }]}
+      onPress={onPress}
+    >
+      {uri ? (
+        <Image source={{ uri }} style={styles.thumb} />
+      ) : (
+        <Text style={styles.tapText}>Tap</Text>
+      )}
+      <Text style={styles.photoLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function ProceedBtn({ enabled, label, onPress }) {
+  return (
+    <TouchableOpacity
+      style={[styles.finish, { opacity: enabled ? 1 : 0.4 }]}
+      disabled={!enabled}
+      onPress={onPress}
+    >
+      <Text style={styles.finishText}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/* ---------- styles ---------- */
+
 const styles = StyleSheet.create({
   container: { padding: 20 },
-  title: { fontSize: 20, fontWeight: "600", marginBottom: 12 },
-  sub: { fontSize: 14, marginBottom: 6 },
+  tabs: { flexDirection: "row", padding: 10 },
+  tab: { flex: 1, padding: 10, alignItems: "center", borderRadius: 6 },
+  h: { marginTop: 8, marginBottom: 6, fontWeight: "600" },
+  dropdown: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 6,
+  },
   option: {
-    flexDirection: "row",
-    alignItems: "center",
     padding: 12,
     borderRadius: 8,
     borderWidth: 1.5,
     marginBottom: 8,
-  },
-  circle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: "#2ecc71",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-  tick: { color: "#fff", fontSize: 12, fontWeight: "600" },
-  optionText: { flex: 1, fontSize: 14 },
-  row: { flexDirection: "row", marginBottom: 8 },
-  choice: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    marginRight: 8,
   },
   input: {
     borderWidth: 1,
@@ -251,36 +406,36 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 8,
   },
+  row: { flexDirection: "row", marginBottom: 8 },
+  toggle: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginRight: 8,
+  },
   photoRow: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 10,
+    padding: 12,
+    borderWidth: 0.5,
     borderRadius: 8,
-    borderWidth: 1.5,
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  placeholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
+  photoLabel: { fontSize: 14, color: "#999" },
+  tapText: { color: "#999" },
   thumb: {
     width: 48,
     height: 48,
     borderRadius: 6,
     marginRight: 12,
   },
-  photoText: { flex: 1, fontSize: 14 },
-  btn: {
-    marginTop: 16,
+  finish: {
+    marginTop: 20,
     padding: 16,
     borderRadius: 8,
+    backgroundColor: "#2ecc71",
     alignItems: "center",
   },
-  btnText: { color: "#fff", fontWeight: "600" },
+  finishText: { color: "#fff", fontWeight: "600" },
 });

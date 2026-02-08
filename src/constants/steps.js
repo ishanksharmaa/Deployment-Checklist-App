@@ -3,7 +3,7 @@
 export const STEPS = [
   {
     id: 1,
-    title: "Pre-Deployment Checklist",
+    title: "Pre-Deployment Checklist (only once)",
     screen: "PreDeployment",
   },
   {
@@ -29,14 +29,14 @@ export const STEPS = [
   {
     id: 6,
     title: "Ground Truthing",
-    screen: "GroundTruthFlora", // entry point for ground truth
+    screen: "GroundTruth", // entry point for ground truth
   },
 ];
 
 export const GROUND_TRUTH_FLOW = [
   {
     id: "flora",
-    screen: "GroundTruthFlora",
+    screen: "GroundTruth",
   },
   {
     id: "fauna",
