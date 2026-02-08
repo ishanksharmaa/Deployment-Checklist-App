@@ -17,6 +17,7 @@ import {
   updateSite,
 } from "../storage/sitesStorage";
 import { setCurrentStep } from "../storage/progressStorage";
+import { updateSite } from "../storage/sitesStorage";
 import { LightTheme, DarkTheme } from "../constants/theme";
 import Header from "../components/Header";
 
@@ -112,6 +113,14 @@ export default function SiteArrivalScreen({ navigation }) {
 
     // keep current site for next screens
     await AsyncStorage.setItem("currentSiteId", siteId);
+    await updateSite(siteId, {
+  arrival: {
+    coords,
+    time: arrivalTime,
+    accessIssue: hasIssue,
+    issueNote: issueText,
+  },
+});
 
     await setCurrentStep(3);
     navigation.navigate("DeviceSetup");

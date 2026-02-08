@@ -66,7 +66,7 @@ export default function DeviceSetupScreen({ navigation }) {
       deviceSetup: {
         deviceId,
         customMode,
-        batteryOk,
+        batteriesOk: batteryOk, // ✅ correct key
         sdOk,
         duration,
       },
