@@ -6,6 +6,7 @@ import {
   useColorScheme,
   TouchableOpacity,
   Alert,
+  ScrollView,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 
@@ -37,33 +38,67 @@ export default function HomeScreen({ navigation }) {
 
       const done = await isAllSitesCompleted();
       setAllSitesDone(done);
-    } catch (err) {
+    } catch {
       Alert.alert(
         "Error",
-        "Failed to load app progress. Please restart the app."
+        "Failed to load progress. Please restart the app."
       );
     }
   };
 
   /* ---------- STEP NAV GUARD ---------- */
   const handleStepPress = (step) => {
-    if (step.id > currentStep) {
-      Alert.alert(
-        "Step locked",
-        "Complete previous steps before proceeding."
-      );
+    // deployment steps
+    if (step.type === "deployment") {
+      if (step.id > currentStep) {
+        Alert.alert(
+          "Step locked",
+          "Complete previous steps first."
+        );
+        return;
+      }
+      navigation.navigate(step.screen);
       return;
     }
-    navigation.navigate(step.screen);
+
+    // retrieval steps
+    if (step.type === "retrieval") {
+      if (!allSitesDone) {
+        Alert.alert(
+          "Retrieval locked",
+          "Complete deployment for all sites before retrieval."
+        );
+        return;
+      }
+      navigation.navigate(step.screen);
+    }
   };
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Deployment Checklist App</Text>
+  /* ---------- FILTER STEPS ---------- */
+  const deploymentSteps = STEPS.filter(
+    (s) => s.type === "deployment"
+  );
 
-      {/* STEP CARDS */}
+  const retrievalSteps = STEPS.filter(
+    (s) => s.type === "retrieval"
+  );
+
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={styles.container}
+    >
+      <Text style={styles.header}>
+        Deployment Checklist App
+      </Text>
+
+      {/* ---------- DEPLOYMENT ---------- */}
+      <Text style={styles.sectionTitle}>
+        Deployment Flow
+      </Text>
+
       <View style={styles.grid}>
-        {STEPS.map((step) => (
+        {deploymentSteps.map((step) => (
           <StepButton
             key={step.id}
             step={step}
@@ -73,24 +108,57 @@ export default function HomeScreen({ navigation }) {
         ))}
       </View>
 
-      {/* VIEW SITE SUMMARY (always visible) */}
+      {/* ---------- RETRIEVAL ---------- */}
+      <Text
+        style={[
+          styles.sectionTitle,
+          { marginTop: 30 },
+        ]}
+      >
+        Retrieval Flow
+      </Text>
+
+      <View style={styles.grid}>
+        {retrievalSteps.map((step) => (
+          <StepButton
+            key={step.id}
+            step={step}
+            currentStep={
+              allSitesDone ? step.id : 0
+            }
+            onPress={() => handleStepPress(step)}
+          />
+        ))}
+      </View>
+
+      {/* ---------- SUMMARY ---------- */}
       <TouchableOpacity
         style={styles.summaryBtn}
-        onPress={() => navigation.navigate("SiteSummary")}
+        onPress={() =>
+          navigation.navigate("SiteSummary")
+        }
       >
-        <Text style={styles.summaryText}>View Site Summary</Text>
+        <Text style={styles.summaryText}>
+          View Site Summary
+        </Text>
       </TouchableOpacity>
 
-      {/* VIEW DAILY SUMMARY (only when all sites done) */}
       {allSitesDone && (
         <TouchableOpacity
-          style={[styles.summaryBtn, { marginTop: 12 }]}
-          onPress={() => navigation.navigate("DailySummary")}
+          style={[
+            styles.summaryBtn,
+            { marginTop: 12 },
+          ]}
+          onPress={() =>
+            navigation.navigate("DailySummary")
+          }
         >
-          <Text style={styles.summaryText}>View Daily Summary</Text>
+          <Text style={styles.summaryText}>
+            View Daily Summary
+          </Text>
         </TouchableOpacity>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -99,16 +167,20 @@ export default function HomeScreen({ navigation }) {
 const getStyles = (colors) =>
   StyleSheet.create({
     container: {
-      flex: 1,
       padding: 20,
-      paddingTop: 50,
-      backgroundColor: colors.background,
+      paddingBottom: 40,
     },
     header: {
       fontSize: 20,
       fontWeight: "600",
-      marginBottom: 25,
+      marginBottom: 20,
       textAlign: "center",
+      color: colors.text,
+    },
+    sectionTitle: {
+      fontSize: 15,
+      fontWeight: "600",
+      marginBottom: 12,
       color: colors.text,
     },
     grid: {

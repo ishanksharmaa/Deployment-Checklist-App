@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
+import {
+  View,
+  ActivityIndicator,
+  useColorScheme,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { useColorScheme, View, ActivityIndicator } from "react-native";
 
 import { initSitesIfNeeded } from "./src/storage/sitesStorage";
 import StackNav from "./src/navigation/StackNav";
@@ -15,11 +19,13 @@ export default function App() {
 
   const initApp = async () => {
     try {
+      // ensure sites storage is initialized once
       await initSitesIfNeeded();
-      setReady(true);
     } catch (err) {
-      console.error("App init failed:", err);
-      setReady(true); // fail-safe: allow app to load
+      console.log("App init error:", err);
+      // fail-safe: app should still open
+    } finally {
+      setReady(true);
     }
   };
 
@@ -28,8 +34,8 @@ export default function App() {
       <View
         style={{
           flex: 1,
-          alignItems: "center",
           justifyContent: "center",
+          alignItems: "center",
         }}
       >
         <ActivityIndicator size="large" />
@@ -39,13 +45,11 @@ export default function App() {
 
   return (
     <>
-      {/* Transparent system status bar */}
       <StatusBar
         style={scheme === "dark" ? "light" : "dark"}
         translucent
         backgroundColor="transparent"
       />
-
       <StackNav />
     </>
   );

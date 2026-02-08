@@ -7,9 +7,17 @@ SINGLE SOURCE OF TRUTH – SITE OBJECT
 
 {
   id: "C1-S1",
+
+  // deployment completed or not
   completed: false,
 
-  arrival: { ... },
+  arrival: {
+    coords: { lat, lng, acc },
+    time: "",
+    accessIssue: false,
+    issueNote: ""
+  },
+
   deviceSetup: { ... },
   placement: { ... },
   documentation: { ... },
@@ -19,6 +27,31 @@ SINGLE SOURCE OF TRUTH – SITE OBJECT
     fauna: { ... },
     photos: { ... },
     completedAt: ""
+  },
+
+  retrieval: {
+    arrival: {
+      time: "",
+      referenceCoords: { lat, lng, acc }
+    },
+
+    deviceStatus: {
+      battery: "",        // Full / Moderate / Low / Depleted
+      condition: "",      // Dry / Wet / Damaged / Missing
+      sdRemoved: false,
+      note: ""
+    },
+
+    groundTruthUpdate: {
+      vegetationChanged: false,
+      notes: "",
+      birdActivity: "",
+      noiseLevel: "",
+      photo: null
+    },
+
+    timeRetrieved: "",
+    completed: false
   }
 }
 */
@@ -42,6 +75,8 @@ export const DEFAULT_SITES = [
   placement: null,
   documentation: null,
   groundTruth: null,
+
+  retrieval: null, // retrieval start hone par banega
 }));
 
 /* ---------- HELPERS ---------- */
@@ -106,11 +141,13 @@ export const isAllSitesCompleted = async () => {
 
 /* ---------- UPDATE SITE ---------- */
 /*
-sectionData example:
-{ deviceSetup: {...} }
-{ placement: {...} }
-{ documentation: {...} }
-{ groundTruth: {...} }
+Use for:
+arrival
+deviceSetup
+placement
+documentation
+groundTruth
+retrieval
 */
 
 export const updateSite = async (siteId, sectionData) => {
@@ -125,7 +162,7 @@ export const updateSite = async (siteId, sectionData) => {
 
     return {
       ...site,
-      ...sectionData, // sirf jo section bheja wahi overwrite hoga
+      ...sectionData, // jo section bheja wahi overwrite
     };
   });
 
@@ -139,9 +176,9 @@ export const updateSite = async (siteId, sectionData) => {
   );
 };
 
-/* ---------- MARK SITE COMPLETED ---------- */
+/* ---------- MARK DEPLOYMENT COMPLETED ---------- */
 /*
-ONLY call from GroundTruthScreen (last step)
+ONLY call from GroundTruthScreen
 */
 
 export const markSiteCompleted = async (siteId) => {
@@ -159,7 +196,33 @@ export const markSiteCompleted = async (siteId) => {
   );
 };
 
-/* ---------- RESET (ADMIN / DEBUG) ---------- */
+/* ---------- MARK RETRIEVAL COMPLETED ---------- */
+/*
+Call from RetrievalSummaryScreen
+*/
+
+export const markRetrievalCompleted = async (siteId) => {
+  const sites = await ensureInit();
+
+  const updated = sites.map((site) =>
+    site.id === siteId
+      ? {
+          ...site,
+          retrieval: {
+            ...site.retrieval,
+            completed: true,
+          },
+        }
+      : site
+  );
+
+  await AsyncStorage.setItem(
+    SITES_KEY,
+    JSON.stringify(updated)
+  );
+};
+
+/* ---------- RESET (DEBUG / ADMIN) ---------- */
 
 export const resetAllSites = async () => {
   await AsyncStorage.setItem(
